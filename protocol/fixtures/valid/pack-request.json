@@ -1,0 +1,7 @@
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "locate the authentication contracts",
+  "focus": ["architecture", "symbols", "source"],
+  "tokenBudget": 2400
+}

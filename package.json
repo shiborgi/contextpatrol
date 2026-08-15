@@ -1,0 +1,67 @@
+{
+  "name": "contextpatrol",
+  "version": "1.0.0",
+  "description": "Local-first, read-only, commit-aware context capsules for coding agents.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shiborgi/contextpatrol.git"
+  },
+  "homepage": "https://github.com/shiborgi/contextpatrol#readme",
+  "bugs": {
+    "url": "https://github.com/shiborgi/contextpatrol/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "contextpatrol": "./bin/contextpatrol.js"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "!dist/test",
+    "protocol",
+    "docs",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check",
+    "format": "biome check --write",
+    "test:run": "node --test dist/test/*.test.js",
+    "test": "npm run build && npm run test:run",
+    "check": "npm run typecheck && npm run lint && npm run build && npm run test:run",
+    "check-schemas": "node scripts/check-schemas.mjs",
+    "evaluate": "npm run build && node scripts/evaluate.mjs",
+    "smoke:installed": "node scripts/smoke-installed.mjs",
+    "cli-check:run": "node bin/contextpatrol.js --help",
+    "cli-check": "npm run build && npm run cli-check:run",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run check-schemas && npm run test:run && npm run evaluate && npm run cli-check:run",
+    "release-check": "npm run build && npm run smoke:installed",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "typescript": "5.9.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@types/node": "^22.20.1",
+    "ajv": "^8.17.1"
+  },
+  "keywords": [
+    "agents",
+    "code-intelligence",
+    "context-engineering"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiborgi.dev/contextpatrol/pack-request.schema.json",
+  "title": "PackRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "workspace", "intent", "focus", "tokenBudget"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "workspace": { "type": "string", "minLength": 1 },
+    "intent": { "type": "string", "minLength": 1 },
+    "focus": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "enum": ["architecture", "symbols", "source"] }
+    },
+    "tokenBudget": { "type": "integer", "minimum": 256, "maximum": 32000 },
+    "changedPaths": {
+      "type": "array",
+      "maxItems": 200,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

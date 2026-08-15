@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiborgi.dev/contextpatrol/error.schema.json",
+  "title": "Error",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error", "message"],
+  "properties": {
+    "error": { "type": "string" },
+    "message": { "type": "string" }
+  }
+}

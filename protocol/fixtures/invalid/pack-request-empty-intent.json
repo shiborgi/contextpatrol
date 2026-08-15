@@ -1,0 +1,7 @@
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "",
+  "focus": ["symbols"],
+  "tokenBudget": 800
+}

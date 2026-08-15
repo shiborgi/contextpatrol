@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiborgi.dev/contextpatrol/provider-descriptor.schema.json",
+  "title": "ProviderDescriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "protocolVersion", "features", "focusValues", "estimator", "limits"],
+  "properties": {
+    "provider": { "const": "contextpatrol" },
+    "protocolVersion": { "const": 1 },
+    "features": { "type": "array", "items": { "const": "pack" } },
+    "focusValues": {
+      "type": "array",
+      "items": { "enum": ["architecture", "symbols", "source"] }
+    },
+    "estimator": { "const": "utf8-bytes/3-conservative-v1" },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minBudget", "maxBudget", "maxRequestBytes", "maxChangedPaths", "maxFileBytes", "maxFiles"],
+      "properties": {
+        "minBudget": { "type": "integer" },
+        "maxBudget": { "type": "integer" },
+        "maxRequestBytes": { "type": "integer" },
+        "maxChangedPaths": { "type": "integer" },
+        "maxFileBytes": { "type": "integer" },
+        "maxFiles": { "type": "integer" }
+      }
+    }
+  }
+}

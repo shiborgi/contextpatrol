@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 1,
+  "capsuleId": "ctx-example",
+  "capsuleDigest": "sha256:example",
+  "requestDigest": "sha256:example",
+  "intent": "locate the authentication contracts",
+  "focus": ["symbols"],
+  "snapshot": {
+    "projectId": "sha256:project",
+    "workspaceId": "sha256:workspace",
+    "head": "0123456789abcdef0123456789abcdef01234567",
+    "dirtyDigest": "sha256:dirty",
+    "sourceDigest": "sha256:source",
+    "snapshotDigest": "sha256:snapshot",
+    "extractorVersion": "typescript-ast-v1",
+    "policyDigest": "sha256:policy"
+  },
+  "budget": {
+    "requestedTokens": 2400,
+    "estimatedTokens": 120,
+    "estimator": "utf8-bytes/3-conservative-v1"
+  },
+  "changedPaths": [],
+  "evidence": [
+    {
+      "id": "sym:src/auth.ts#AuthService",
+      "kind": "symbol",
+      "title": "AuthService",
+      "text": "class AuthService {}",
+      "path": "src/auth.ts",
+      "range": { "startLine": 1, "endLine": 3 },
+      "provenance": "extracted",
+      "confidence": 1.0,
+      "estimatedTokens": 40
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "verification": {
+    "argv": ["npm", "run", "check"],
+    "timeoutMs": 180000
+  }
+}

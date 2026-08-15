@@ -1,0 +1,8 @@
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "validate the impact of token rotation",
+  "focus": ["symbols"],
+  "tokenBudget": 800,
+  "changedPaths": ["src/auth.ts"]
+}
