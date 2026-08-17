@@ -21,6 +21,8 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
     scriptKind,
   );
 
+  const { exportedNames, defaultExport } = collectExportedNames(sourceFile);
+
   const facts: SymbolFact[] = [];
   const lineOf = (pos: number): number =>
     sourceFile.getLineAndCharacterOfPosition(pos).line + 1;
@@ -56,6 +58,9 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
     return (modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
   };
 
+  const isReachable = (name: string): boolean =>
+    exportedNames.has(name) || defaultExport === name;
+
   const visit = (node: ts.Node): void => {
     if (ts.isFunctionDeclaration(node) && node.name) {
       push(
@@ -63,11 +68,12 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
         node.name.text,
         node,
         `${path}#${node.name.text}`,
-        isExported(node),
+        isExported(node) || isReachable(node.name.text),
       );
     } else if (ts.isClassDeclaration(node) && node.name) {
       const className = node.name.text;
-      push("class", className, node, `${path}#${className}`, isExported(node));
+      const classExported = isExported(node) || isReachable(className);
+      push("class", className, node, `${path}#${className}`, classExported);
       for (const member of node.members) {
         if (ts.isMethodDeclaration(member) && member.name) {
           const methodName = nameText(member.name);
@@ -76,7 +82,7 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
             methodName,
             member,
             `${path}#${className}.${methodName}`,
-            true,
+            classExported,
           );
         } else if (ts.isConstructorDeclaration(member)) {
           push(
@@ -84,7 +90,7 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
             "constructor",
             member,
             `${path}#${className}.constructor`,
-            true,
+            classExported,
           );
         }
       }
@@ -94,12 +100,24 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
         node.name.text,
         node,
         `${path}#${node.name.text}`,
-        isExported(node),
+        isExported(node) || isReachable(node.name.text),
       );
     } else if (ts.isTypeAliasDeclaration(node)) {
-      push("type", node.name.text, node, `${path}#${node.name.text}`, isExported(node));
+      push(
+        "type",
+        node.name.text,
+        node,
+        `${path}#${node.name.text}`,
+        isExported(node) || isReachable(node.name.text),
+      );
     } else if (ts.isEnumDeclaration(node)) {
-      push("enum", node.name.text, node, `${path}#${node.name.text}`, isExported(node));
+      push(
+        "enum",
+        node.name.text,
+        node,
+        `${path}#${node.name.text}`,
+        isExported(node) || isReachable(node.name.text),
+      );
     } else if (ts.isVariableDeclaration(node)) {
       const init = node.initializer;
       const isCallable =
@@ -111,7 +129,7 @@ export function extractSymbols(path: string, source: string): SymbolFact[] {
           node.name.text,
           node,
           `${path}#${node.name.text}`,
-          false,
+          isReachable(node.name.text),
         );
       }
     }
@@ -133,6 +151,115 @@ function firstLine(text: string, max: number): string {
   const trimmed = text.trim();
   const line = trimmed.split("\n", 1)[0] ?? trimmed;
   return line.length <= max ? line : `${line.slice(0, max)}\u2026`;
+}
+
+interface ExportInfo {
+  exportedNames: Set<string>;
+  defaultExport: string | null;
+}
+
+/**
+ * Collect the module's export surface so reachability (exported) can be
+ * computed for members that carry no export modifier of their own: methods,
+ * constructors and callable variables. Covers export modifiers, named export
+ * lists, default exports and CommonJS assignments (`module.exports` /
+ * `exports.x`).
+ */
+function collectExportedNames(sourceFile: ts.SourceFile): ExportInfo {
+  const exportedNames = new Set<string>();
+  let defaultExport: string | null = null;
+
+  const addName = (name: ts.Node | undefined): void => {
+    if (name !== undefined && ts.isIdentifier(name)) {
+      exportedNames.add(name.text);
+    }
+  };
+
+  const hasExportModifier = (node: ts.Node): boolean =>
+    ts.canHaveModifiers(node)
+      ? (ts.getModifiers(node) ?? []).some(
+          (m) => m.kind === ts.SyntaxKind.ExportKeyword,
+        )
+      : false;
+
+  const isExportsIdentifier = (node: ts.Node): boolean =>
+    ts.isIdentifier(node) && node.text === "exports";
+
+  const isModuleExports = (node: ts.Node): boolean =>
+    ts.isPropertyAccessExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    node.expression.text === "module" &&
+    node.name.text === "exports";
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isClassDeclaration(node) || ts.isFunctionDeclaration(node)) {
+      if (hasExportModifier(node)) {
+        addName(node.name);
+      }
+    } else if (ts.isVariableStatement(node)) {
+      if (hasExportModifier(node)) {
+        for (const decl of node.declarationList.declarations) {
+          addName(decl.name);
+        }
+      }
+    } else if (
+      ts.isInterfaceDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      ts.isEnumDeclaration(node)
+    ) {
+      if (hasExportModifier(node)) {
+        addName(node.name);
+      }
+    } else if (ts.isExportDeclaration(node)) {
+      const clause = node.exportClause;
+      if (clause !== undefined && ts.isNamedExports(clause)) {
+        for (const element of clause.elements) {
+          exportedNames.add(element.name.text);
+        }
+      }
+    } else if (ts.isExportAssignment(node)) {
+      const expression = node.expression;
+      if (ts.isIdentifier(expression)) {
+        defaultExport = expression.text;
+      } else if (
+        (ts.isClassExpression(expression) || ts.isFunctionExpression(expression)) &&
+        expression.name !== undefined
+      ) {
+        defaultExport = expression.name.text;
+      }
+    } else if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+    ) {
+      const left = node.left;
+      const right = node.right;
+      if (isModuleExports(left)) {
+        // module.exports = <identifier | object-literal>
+        if (ts.isIdentifier(right)) {
+          defaultExport = right.text;
+        } else if (ts.isObjectLiteralExpression(right)) {
+          for (const prop of right.properties) {
+            if (
+              (ts.isShorthandPropertyAssignment(prop) ||
+                ts.isPropertyAssignment(prop)) &&
+              ts.isIdentifier(prop.name)
+            ) {
+              exportedNames.add(prop.name.text);
+            }
+          }
+        }
+      } else if (ts.isPropertyAccessExpression(left)) {
+        // exports.foo = ...  |  module.exports.foo = ...
+        if (isExportsIdentifier(left.expression) || isModuleExports(left.expression)) {
+          exportedNames.add(left.name.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  return { exportedNames, defaultExport };
 }
 
 function leadingJsDoc(source: string, fullStart: number): string {
