@@ -5,7 +5,13 @@ export const ESTIMATOR = "utf8-bytes/3-conservative-v1" as const;
 export const EXTRACTOR_VERSION = "typescript-ast-v2" as const;
 export const POLICY_VERSION = 1 as const;
 
-export const FOCUS_VALUES = ["architecture", "symbols", "source"] as const;
+export const FOCUS_VALUES = [
+  "architecture",
+  "symbols",
+  "source",
+  "graph",
+  "review",
+] as const;
 export type Focus = (typeof FOCUS_VALUES)[number];
 
 export const LIMITS = {

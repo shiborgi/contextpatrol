@@ -8,13 +8,17 @@ request JSON (strict)
   -> workspace resolution (Git root, HEAD, identity)
   -> file discovery (tracked + untracked non-ignored, minus denylist)
   -> safe bounded read
-  -> TS/JS AST extraction (symbol facts)
+  -> TS/JS AST extraction (symbol, import, call, rationale facts; isTest)
   -> in-memory snapshot (identity + file manifest + dirty digest)
+  -> code graph (CONTAINS, IMPORTS, INHERITS, IMPLEMENTS, CALLS, TESTED_BY)
+  -> history mining (churn + co-change over a bounded commit window)
+  -> diff-to-symbol mapping (dirty working tree)
+  -> analysis (centrality, blast radius, risk, RRF ranking)
   -> candidate generation (architecture / symbols / source)
-  -> ranking by intent + focus + changedPaths
   -> hard-budget packing (source is clipable, the rest is atomic)
+  -> capsule sections (graph, review, coverage)
   -> re-verify source unchanged
-  -> capsule (digests, evidence, warnings)
+  -> capsule (digests, evidence, sections, warnings)
 ```
 
 ## Identity and digests
@@ -24,9 +28,13 @@ request JSON (strict)
 - `head` is the full resolved OID.
 - `dirtyDigest` hashes the eligible dirty entries (`path + content hash`).
 - `sourceDigest` hashes `head + dirtyDigest + file manifest`.
-- `snapshotDigest` hashes `sourceDigest + extractor + policy`.
-- `requestDigest` hashes the normalized request.
-- `capsuleDigest` hashes the capsule body (everything except the digest field).
+- `snapshotDigest` hashes `sourceDigest + extractorVersion + policyDigest`.
+- `requestDigest` hashes `protocolVersion + workspaceId + intent + focus +
+  tokenBudget + changedPaths`.
+- `capsuleId` is `ctx-` plus the first 16 hex chars of
+  `SHA-256(requestDigest + snapshotDigest)`.
+- `capsuleDigest` hashes the capsule body (everything except the digest field),
+  including `sections`.
 
 All digests are `SHA-256` over canonical JSON (sorted keys, no whitespace).
 
@@ -36,11 +44,21 @@ The same request against the same source state always produces the same
 capsule. No timestamps or non-deterministic ordering participate in any
 digest.
 
+## Epistemic honesty
+
+- A `CALLS` edge is emitted only with same-file or import-scoped evidence.
+  Unresolved call targets are never guessed; they are counted in the
+  `sections.coverage.unresolvedCalls` census instead.
+- `TESTED_BY` edges are inferred (lower confidence than extracted edges).
+- The risk rubric discloses every factor's raw value, cap and contribution;
+  the total is capped at 1.0.
+
 ## Budget
 
 The estimator is byte-conservative (`ceil(bytes / 3)`) and versioned as
 `utf8-bytes/3-conservative-v1`. Only `source` evidence is truncated; other
 evidence is either fully included or omitted with reason `token-budget`.
+Sections are structured metadata, not budget-packed content.
 
 ## Source-change detection
 

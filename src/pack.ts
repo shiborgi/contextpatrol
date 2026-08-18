@@ -1,3 +1,4 @@
+import { analyze } from "./analysis/analysis.js";
 import type { Capsule, PackRequest } from "./contracts.js";
 import { analyzeWorkspace } from "./pipeline/analyze.js";
 import { buildCandidates } from "./pipeline/candidates.js";
@@ -25,13 +26,13 @@ export async function pack(
     denylist,
   );
 
+  const analysis = analyze(scan, identity.root, denylist, changedPaths);
+
   const candidates = buildCandidates(
     normalized.focus,
     scan,
     normalized.intent,
-    changedPaths,
-    identity.root,
-    denylist,
+    analysis,
   );
 
   await verifyUnchanged(identity, denylist, scan);
@@ -41,6 +42,7 @@ export async function pack(
     snapshot,
     scan,
     candidates,
+    analysis,
     focus: normalized.focus,
     intent: normalized.intent,
     tokenBudget: normalized.tokenBudget,

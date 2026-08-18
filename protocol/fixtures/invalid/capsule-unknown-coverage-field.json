@@ -13,7 +13,7 @@
     "dirtyDigest": "sha256:dirty",
     "sourceDigest": "sha256:source",
     "snapshotDigest": "sha256:snapshot",
-    "extractorVersion": "typescript-ast-v1",
+    "extractorVersion": "typescript-ast-v2",
     "policyDigest": "sha256:policy"
   },
   "budget": {
@@ -22,26 +22,15 @@
     "estimator": "utf8-bytes/3-conservative-v1"
   },
   "changedPaths": [],
-  "evidence": [
-    {
-      "id": "sym:src/auth.ts#AuthService",
-      "kind": "symbol",
-      "title": "AuthService",
-      "text": "class AuthService {}",
-      "path": "src/auth.ts",
-      "range": { "startLine": 1, "endLine": 3 },
-      "provenance": "extracted",
-      "confidence": 1.0,
-      "estimatedTokens": 40
-    }
-  ],
+  "evidence": [],
   "sections": {
     "coverage": {
       "unresolvedCalls": [],
       "skipped": [],
       "truncated": false,
       "languagesSeen": ["typescript"],
-      "historyWindow": 2000
+      "historyWindow": 2000,
+      "extraUnknownField": "should-be-rejected"
     }
   },
   "warnings": []

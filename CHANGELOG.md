@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Extraction v2: import, call and rationale facts; `isTest` heuristic.
+- Code graph with confidence tiers: `CONTAINS`, `IMPORTS`, `INHERITS`,
+  `IMPLEMENTS`, `CALLS` (same-file 0.95 / import-scoped 0.90), `TESTED_BY`
+  inference; zero-edge guarantee for unresolved call targets.
+- Git history mining (churn and co-change) and diff-to-symbol mapping.
+- Analysis: noise-filtered centrality, bounded decaying blast radius, capped
+  additive risk rubric, RRF ranking with identifier-shape boosting.
+- Capsule sections: `graph`, `review` and `coverage`; focus values extended
+  with `graph` and `review`.
+- `EXTRACTOR_VERSION` bumped to `typescript-ast-v2`.
+
 ## 1.0.0
 
 First release of the reconstructed ContextPatrol. Requires Node.js 22 or newer.

@@ -5,7 +5,7 @@
   "capsuleDigest": "sha256:example",
   "requestDigest": "sha256:example",
   "intent": "locate the authentication contracts",
-  "focus": ["symbols"],
+  "focus": ["graph"],
   "snapshot": {
     "projectId": "sha256:project",
     "workspaceId": "sha256:workspace",
@@ -13,7 +13,7 @@
     "dirtyDigest": "sha256:dirty",
     "sourceDigest": "sha256:source",
     "snapshotDigest": "sha256:snapshot",
-    "extractorVersion": "typescript-ast-v1",
+    "extractorVersion": "typescript-ast-v2",
     "policyDigest": "sha256:policy"
   },
   "budget": {
@@ -22,20 +22,16 @@
     "estimator": "utf8-bytes/3-conservative-v1"
   },
   "changedPaths": [],
-  "evidence": [
-    {
-      "id": "sym:src/auth.ts#AuthService",
-      "kind": "symbol",
-      "title": "AuthService",
-      "text": "class AuthService {}",
-      "path": "src/auth.ts",
-      "range": { "startLine": 1, "endLine": 3 },
-      "provenance": "extracted",
-      "confidence": 1.0,
-      "estimatedTokens": 40
-    }
-  ],
+  "evidence": [],
   "sections": {
+    "graph": {
+      "fileCount": 3,
+      "symbolCount": 8,
+      "edgeCount": 5,
+      "godSymbols": [{ "qualifiedName": "src/auth.ts#AuthService", "score": 3 }],
+      "boundaryFiles": ["src/auth.ts"],
+      "unexpected": true
+    },
     "coverage": {
       "unresolvedCalls": [],
       "skipped": [],

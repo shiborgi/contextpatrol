@@ -38,7 +38,7 @@ lifecycle vocabulary (`stage`, `operation`, `runId`), and any other protocol
 version — no fallback, no heuristics.
 
 - `protocolVersion`: `1`
-- `focus`: `architecture`, `symbols`, `source`
+- `focus`: `architecture`, `symbols`, `source`, `graph`, `review`
 - estimator: `utf8-bytes/3-conservative-v1`
 
 Contract schemas and fixtures live in `protocol/`.
@@ -58,6 +58,25 @@ Contract schemas and fixtures live in `protocol/`.
 
 `workspace` is the only way to select the repository. The current worktree is
 analyzed: full `HEAD`, a `dirtyDigest`, and deterministic facts.
+
+### Graph and review focus
+
+Ask for `graph` to receive `sections.graph` (file/symbol/edge counts, god
+symbols, boundary files) and `review` to receive `sections.review` (changed
+symbols, per-symbol risk with factors, impact by depth, test gaps). A
+`coverage` section (unresolved call census, skips, languages, history window)
+is always present.
+
+```json
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "what changed in authentication",
+  "focus": ["graph", "review"],
+  "tokenBudget": 2400,
+  "changedPaths": ["src/auth.ts"]
+}
+```
 
 ## Guarantees
 

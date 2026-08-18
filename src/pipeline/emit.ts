@@ -1,3 +1,5 @@
+import type { Analysis } from "../analysis/analysis.js";
+import { buildSections } from "../analysis/sections.js";
 import { clipText, estimateTokens, packBudget } from "../budget.js";
 import {
   ESTIMATOR,
@@ -17,6 +19,7 @@ export interface EmitInput {
   snapshot: Snapshot;
   scan: ScanResult;
   candidates: Candidate[];
+  analysis: Analysis;
   focus: Focus[];
   intent: string;
   tokenBudget: number;
@@ -24,7 +27,8 @@ export interface EmitInput {
 }
 
 export function buildCapsule(input: EmitInput): Capsule {
-  const { identity, snapshot, scan, candidates, focus, intent, tokenBudget } = input;
+  const { identity, snapshot, scan, candidates, analysis, focus, intent, tokenBudget } =
+    input;
   const changedPaths = input.changedPaths;
 
   const packed = packBudget(
@@ -92,6 +96,9 @@ export function buildCapsule(input: EmitInput): Capsule {
   const capsuleId = `ctx-${digestOf({ requestDigest, snapshotDigest: snapshot.snapshotDigest }).slice(0, 16)}`;
   const estimatedTokens = evidence.reduce((sum, ev) => sum + ev.estimatedTokens, 0);
 
+  const allSymbols = scan.fileFacts.flatMap((f) => f.symbols);
+  const sections = buildSections(focus, scan, analysis, allSymbols);
+
   const body: Omit<Capsule, "capsuleDigest"> = {
     schemaVersion: SCHEMA_VERSION,
     protocolVersion: PROTOCOL_VERSION,
@@ -107,6 +114,7 @@ export function buildCapsule(input: EmitInput): Capsule {
     },
     changedPaths,
     evidence,
+    sections,
     omitted,
     warnings,
   };

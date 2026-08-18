@@ -12,8 +12,8 @@
     "focus": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 3,
-      "items": { "enum": ["architecture", "symbols", "source"] }
+      "maxItems": 5,
+      "items": { "enum": ["architecture", "symbols", "source", "graph", "review"] }
     },
     "tokenBudget": { "type": "integer", "minimum": 256, "maximum": 32000 },
     "changedPaths": {

@@ -1,9 +1,7 @@
-import { mapDiff } from "../analysis/diff-map.js";
+import type { Analysis } from "../analysis/analysis.js";
 import { estimateTokens } from "../budget.js";
 import type { Focus } from "../constants.js";
 import type { Evidence } from "../contracts.js";
-import { computeCentrality } from "../graph/centrality.js";
-import { buildCodeGraph } from "../graph/code-graph.js";
 import { compareBytewise } from "../hash.js";
 import type { SymbolFact } from "../model.js";
 import { rankSymbols } from "../ranking.js";
@@ -104,9 +102,7 @@ export function buildCandidates(
   focus: Focus[],
   scan: ScanResult,
   intent: string,
-  changedPaths: string[],
-  root: string,
-  denylist: readonly string[],
+  analysis: Analysis,
 ): Candidate[] {
   const allSymbols: SymbolFact[] = [];
   for (const file of scan.fileFacts) {
@@ -115,12 +111,13 @@ export function buildCandidates(
     }
   }
 
-  // Build graph and run ranking
-  const graph = buildCodeGraph(scan.fileFacts, scan.eligiblePaths);
-  const { godSymbols } = computeCentrality(graph);
-  const changedSymbols = mapDiff(root, scan.fileFacts, denylist, changedPaths);
-
-  const ranked = rankSymbols(allSymbols, intent, graph, changedSymbols, godSymbols);
+  const ranked = rankSymbols(
+    allSymbols,
+    intent,
+    analysis.graph,
+    analysis.changedSymbols,
+    analysis.godSymbols,
+  );
 
   const candidates: Candidate[] = [];
   if (focus.includes("architecture")) {

@@ -73,6 +73,74 @@ export const evidenceSchema = z
   })
   .strict();
 
+export const riskFactorSchema = z
+  .object({
+    factor: z.string(),
+    raw: z.number(),
+    capped: z.number(),
+    contribution: z.number(),
+  })
+  .strict();
+
+export const symbolRiskSchema = z
+  .object({
+    qualifiedName: z.string(),
+    totalRisk: z.number(),
+    factors: riskFactorSchema.array(),
+  })
+  .strict();
+
+export const graphSectionSchema = z
+  .object({
+    fileCount: z.number().int().nonnegative(),
+    symbolCount: z.number().int().nonnegative(),
+    edgeCount: z.number().int().nonnegative(),
+    godSymbols: z.array(
+      z.object({ qualifiedName: z.string(), score: z.number() }).strict(),
+    ),
+    boundaryFiles: z.array(z.string()),
+  })
+  .strict();
+
+export const reviewSectionSchema = z
+  .object({
+    changedSymbols: z.array(z.string()),
+    risk: symbolRiskSchema.array(),
+    impact: z
+      .object({
+        direct: z.array(z.object({ id: z.string(), score: z.number() }).strict()),
+        transitive: z.array(z.object({ id: z.string(), score: z.number() }).strict()),
+      })
+      .strict(),
+    testGaps: z.array(z.string()),
+  })
+  .strict();
+
+export const coverageSectionSchema = z
+  .object({
+    unresolvedCalls: z.array(
+      z
+        .object({
+          callerQualifiedName: z.string(),
+          count: z.number().int().nonnegative(),
+        })
+        .strict(),
+    ),
+    skipped: z.array(z.object({ path: z.string(), reason: z.string() }).strict()),
+    truncated: z.boolean(),
+    languagesSeen: z.array(z.string()),
+    historyWindow: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const sectionsSchema = z
+  .object({
+    graph: graphSectionSchema.optional(),
+    review: reviewSectionSchema.optional(),
+    coverage: coverageSectionSchema,
+  })
+  .strict();
+
 export const capsuleSchema = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION),
@@ -92,6 +160,7 @@ export const capsuleSchema = z
       .strict(),
     changedPaths: z.array(z.string()),
     evidence: evidenceSchema.array(),
+    sections: sectionsSchema,
     omitted: z
       .array(
         z
@@ -118,6 +187,7 @@ export type PackRequest = z.infer<typeof packRequestSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type Evidence = z.infer<typeof evidenceSchema>;
 export type Capsule = z.infer<typeof capsuleSchema>;
+export type Sections = z.infer<typeof sectionsSchema>;
 
 export function descriptor(): ProviderDescriptor {
   return {

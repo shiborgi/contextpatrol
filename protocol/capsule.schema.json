@@ -16,6 +16,7 @@
     "budget",
     "changedPaths",
     "evidence",
+    "sections",
     "warnings"
   ],
   "properties": {
@@ -27,7 +28,7 @@
     "intent": { "type": "string" },
     "focus": {
       "type": "array",
-      "items": { "enum": ["architecture", "symbols", "source"] }
+      "items": { "enum": ["architecture", "symbols", "source", "graph", "review"] }
     },
     "snapshot": {
       "type": "object",
@@ -89,6 +90,127 @@
           "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
           "estimatedTokens": { "type": "integer", "minimum": 0 },
           "clipped": { "type": "boolean" }
+        }
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage"],
+      "properties": {
+        "graph": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fileCount", "symbolCount", "edgeCount", "godSymbols", "boundaryFiles"],
+          "properties": {
+            "fileCount": { "type": "integer", "minimum": 0 },
+            "symbolCount": { "type": "integer", "minimum": 0 },
+            "edgeCount": { "type": "integer", "minimum": 0 },
+            "godSymbols": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["qualifiedName", "score"],
+                "properties": {
+                  "qualifiedName": { "type": "string" },
+                  "score": { "type": "number" }
+                }
+              }
+            },
+            "boundaryFiles": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["changedSymbols", "risk", "impact", "testGaps"],
+          "properties": {
+            "changedSymbols": { "type": "array", "items": { "type": "string" } },
+            "risk": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["qualifiedName", "totalRisk", "factors"],
+                "properties": {
+                  "qualifiedName": { "type": "string" },
+                  "totalRisk": { "type": "number" },
+                  "factors": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["factor", "raw", "capped", "contribution"],
+                      "properties": {
+                        "factor": { "type": "string" },
+                        "raw": { "type": "number" },
+                        "capped": { "type": "number" },
+                        "contribution": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "impact": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["direct", "transitive"],
+              "properties": {
+                "direct": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id", "score"],
+                    "properties": { "id": { "type": "string" }, "score": { "type": "number" } }
+                  }
+                },
+                "transitive": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id", "score"],
+                    "properties": { "id": { "type": "string" }, "score": { "type": "number" } }
+                  }
+                }
+              }
+            },
+            "testGaps": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unresolvedCalls", "skipped", "truncated", "languagesSeen", "historyWindow"],
+          "properties": {
+            "unresolvedCalls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["callerQualifiedName", "count"],
+                "properties": {
+                  "callerQualifiedName": { "type": "string" },
+                  "count": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "skipped": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "reason"],
+                "properties": { "path": { "type": "string" }, "reason": { "type": "string" } }
+              }
+            },
+            "truncated": { "type": "boolean" },
+            "languagesSeen": { "type": "array", "items": { "type": "string" } },
+            "historyWindow": { "type": "integer", "minimum": 0 }
+          }
         }
       }
     },

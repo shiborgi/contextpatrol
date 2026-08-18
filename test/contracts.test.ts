@@ -21,7 +21,13 @@ test("descriptor matches protocol v1", () => {
   const d = descriptor();
   assert.equal(d.provider, "contextpatrol");
   assert.equal(d.protocolVersion, 1);
-  assert.deepEqual(d.focusValues, ["architecture", "symbols", "source"]);
+  assert.deepEqual(d.focusValues, [
+    "architecture",
+    "symbols",
+    "source",
+    "graph",
+    "review",
+  ]);
   assert.ok(d.features.includes("pack"));
 });
 

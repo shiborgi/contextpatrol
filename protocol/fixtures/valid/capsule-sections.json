@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 1,
+  "capsuleId": "ctx-example",
+  "capsuleDigest": "sha256:example",
+  "requestDigest": "sha256:example",
+  "intent": "locate the authentication contracts",
+  "focus": ["graph", "review"],
+  "snapshot": {
+    "projectId": "sha256:project",
+    "workspaceId": "sha256:workspace",
+    "head": "0123456789abcdef0123456789abcdef01234567",
+    "dirtyDigest": "sha256:dirty",
+    "sourceDigest": "sha256:source",
+    "snapshotDigest": "sha256:snapshot",
+    "extractorVersion": "typescript-ast-v2",
+    "policyDigest": "sha256:policy"
+  },
+  "budget": {
+    "requestedTokens": 2400,
+    "estimatedTokens": 120,
+    "estimator": "utf8-bytes/3-conservative-v1"
+  },
+  "changedPaths": [],
+  "evidence": [],
+  "sections": {
+    "graph": {
+      "fileCount": 3,
+      "symbolCount": 8,
+      "edgeCount": 5,
+      "godSymbols": [{ "qualifiedName": "src/auth.ts#AuthService", "score": 3 }],
+      "boundaryFiles": ["src/auth.ts"]
+    },
+    "review": {
+      "changedSymbols": ["src/auth.ts#AuthService"],
+      "risk": [
+        {
+          "qualifiedName": "src/auth.ts#AuthService",
+          "totalRisk": 0.6,
+          "factors": [
+            { "factor": "untested", "raw": 1, "capped": 0.3, "contribution": 0.3 },
+            { "factor": "security-keyword", "raw": 1, "capped": 0.2, "contribution": 0.2 },
+            { "factor": "churn", "raw": 10, "capped": 0.1, "contribution": 0.1 }
+          ]
+        }
+      ],
+      "impact": {
+        "direct": [{ "id": "sym:src/index.ts#main", "score": 0.5 }],
+        "transitive": []
+      },
+      "testGaps": ["src/auth.ts"]
+    },
+    "coverage": {
+      "unresolvedCalls": [],
+      "skipped": [],
+      "truncated": false,
+      "languagesSeen": ["typescript"],
+      "historyWindow": 2000
+    }
+  },
+  "warnings": []
+}
