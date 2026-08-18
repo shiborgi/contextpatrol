@@ -1,91 +1,18 @@
+import { mapDiff } from "../analysis/diff-map.js";
 import { estimateTokens } from "../budget.js";
 import type { Focus } from "../constants.js";
 import type { Evidence } from "../contracts.js";
+import { computeCentrality } from "../graph/centrality.js";
+import { buildCodeGraph } from "../graph/code-graph.js";
 import { compareBytewise } from "../hash.js";
 import type { SymbolFact } from "../model.js";
+import { rankSymbols } from "../ranking.js";
 import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
-
-const STOPWORDS = new Set([
-  "the",
-  "a",
-  "an",
-  "and",
-  "or",
-  "of",
-  "to",
-  "in",
-  "on",
-  "for",
-  "with",
-  "is",
-  "are",
-  "was",
-  "be",
-  "it",
-  "this",
-  "that",
-  "which",
-  "as",
-  "at",
-  "by",
-  "from",
-  "into",
-  "about",
-  "over",
-  "under",
-  "do",
-  "does",
-  "did",
-]);
 
 export interface Candidate {
   evidence: Evidence;
   clipable: boolean;
-}
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/i)
-    .filter((term) => term.length >= 2 && !STOPWORDS.has(term));
-}
-
-function symbolScore(
-  symbol: SymbolFact,
-  terms: string[],
-  changedPaths: string[],
-): number {
-  const name = symbol.name.toLowerCase();
-  const qualified = symbol.qualifiedName.toLowerCase();
-  const path = symbol.path.toLowerCase();
-  const context = `${symbol.signature} ${symbol.jsdoc}`.toLowerCase();
-  let score = 0;
-  for (const term of terms) {
-    if (name.includes(term)) {
-      score += 3;
-    }
-    if (qualified.includes(term)) {
-      score += 2;
-    }
-    if (path.includes(term)) {
-      score += 2;
-    }
-    if (context.includes(term)) {
-      score += 1;
-    }
-  }
-  if (symbol.exported) {
-    score += 1;
-  }
-  for (const cp of changedPaths) {
-    const lower = cp.toLowerCase();
-    if (path === lower || path.startsWith(`${lower}/`)) {
-      score += 10;
-      break;
-    }
-  }
-  return score;
 }
 
 function symbolId(symbol: SymbolFact, kind: "sym" | "src"): string {
@@ -116,13 +43,13 @@ function buildArchitectureEvidence(
     .join(", ");
   const dirs = [...byDir.entries()]
     .sort((a, b) => compareBytewise(a[0], b[0]))
-    .map(([dir, count]) => `${dir} (${count})`)
+    .map(([dir, count]) => `${dir}: ${count}`)
     .join(", ");
 
   const text = [
     `Files: ${fileFacts.length} (${languages || "none"})`,
     `Symbols: ${symbolCount}`,
-    `Top-level: ${dirs || "none"}`,
+    `Directories: ${dirs || "none"}`,
     entryPoints.length > 0 ? `Entry points: ${entryPoints.join(", ")}` : "",
   ]
     .filter(Boolean)
@@ -178,6 +105,8 @@ export function buildCandidates(
   scan: ScanResult,
   intent: string,
   changedPaths: string[],
+  root: string,
+  denylist: readonly string[],
 ): Candidate[] {
   const allSymbols: SymbolFact[] = [];
   for (const file of scan.fileFacts) {
@@ -186,14 +115,12 @@ export function buildCandidates(
     }
   }
 
-  const terms = tokenize(intent);
-  const ranked = allSymbols
-    .map((symbol) => ({ symbol, score: symbolScore(symbol, terms, changedPaths) }))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        compareBytewise(a.symbol.qualifiedName, b.symbol.qualifiedName),
-    );
+  // Build graph and run ranking
+  const graph = buildCodeGraph(scan.fileFacts, scan.eligiblePaths);
+  const { godSymbols } = computeCentrality(graph);
+  const changedSymbols = mapDiff(root, scan.fileFacts, denylist, changedPaths);
+
+  const ranked = rankSymbols(allSymbols, intent, graph, changedSymbols, godSymbols);
 
   const candidates: Candidate[] = [];
   if (focus.includes("architecture")) {
@@ -204,13 +131,13 @@ export function buildCandidates(
   }
 
   if (focus.includes("symbols")) {
-    for (const { symbol } of ranked.slice(0, 500)) {
+    for (const symbol of ranked.slice(0, 500)) {
       candidates.push({ evidence: symbolEvidence(symbol), clipable: false });
     }
   }
 
   if (focus.includes("source")) {
-    for (const { symbol } of ranked.slice(0, 200)) {
+    for (const symbol of ranked.slice(0, 200)) {
       candidates.push({ evidence: sourceEvidence(symbol), clipable: true });
     }
   }

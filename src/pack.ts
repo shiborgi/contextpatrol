@@ -30,6 +30,8 @@ export async function pack(
     scan,
     normalized.intent,
     changedPaths,
+    identity.root,
+    denylist,
   );
 
   await verifyUnchanged(identity, denylist, scan);
