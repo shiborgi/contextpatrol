@@ -118,7 +118,21 @@
                 }
               }
             },
-            "boundaryFiles": { "type": "array", "items": { "type": "string" } }
+            "boundaryFiles": { "type": "array", "items": { "type": "string" } },
+            "communities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "memberCount", "topFiles", "cohesion"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "memberCount": { "type": "integer", "minimum": 0 },
+                  "topFiles": { "type": "array", "items": { "type": "string" } },
+                  "cohesion": { "type": "number" }
+                }
+              }
+            }
           }
         },
         "review": {

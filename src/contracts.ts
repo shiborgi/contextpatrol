@@ -99,6 +99,18 @@ export const graphSectionSchema = z
       z.object({ qualifiedName: z.string(), score: z.number() }).strict(),
     ),
     boundaryFiles: z.array(z.string()),
+    communities: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            memberCount: z.number().int().nonnegative(),
+            topFiles: z.array(z.string()),
+            cohesion: z.number(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

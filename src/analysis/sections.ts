@@ -1,4 +1,5 @@
-import type { Sections } from "../contracts.js";
+import type { z } from "zod";
+import type { graphSectionSchema, Sections } from "../contracts.js";
 import { computeImpact } from "../graph/impact.js";
 import { compareBytewise } from "../hash.js";
 import type { SymbolFact } from "../model.js";
@@ -7,12 +8,37 @@ import type { ScanResult } from "../snapshot.js";
 import type { Analysis } from "./analysis.js";
 import { scoreSymbolRisk } from "./risk.js";
 
-function buildGraphSection(analysis: Analysis, scan: ScanResult) {
+type GraphSection = z.infer<typeof graphSectionSchema>;
+
+function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
   let symbolCount = 0;
+  const symbolFile = new Map<string, string>();
   for (const file of scan.fileFacts) {
     symbolCount += file.symbols.length;
+    for (const sym of file.symbols) {
+      symbolFile.set(sym.qualifiedName, file.path);
+    }
   }
-  return {
+
+  const communities = analysis.communities.map((c) => {
+    const fileCounts = new Map<string, number>();
+    for (const member of c.members) {
+      const path = symbolFile.get(member) ?? "<unknown>";
+      fileCounts.set(path, (fileCounts.get(path) ?? 0) + 1);
+    }
+    const topFiles = [...fileCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || compareBytewise(a[0], b[0]))
+      .slice(0, 5)
+      .map(([path]) => redact(path));
+    return {
+      id: c.id,
+      memberCount: c.memberCount,
+      topFiles,
+      cohesion: c.cohesion,
+    };
+  });
+
+  const graphSection: GraphSection = {
     fileCount: scan.fileFacts.length,
     symbolCount,
     edgeCount: analysis.graph.edges.length,
@@ -22,6 +48,12 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult) {
     })),
     boundaryFiles: analysis.boundaryFiles.map((p) => redact(p)),
   };
+
+  if (communities.length > 0) {
+    graphSection.communities = communities;
+  }
+
+  return graphSection;
 }
 
 function buildReviewSection(
