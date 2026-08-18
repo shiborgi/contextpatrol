@@ -27,7 +27,11 @@ function neutralizedEnv(): NodeJS.ProcessEnv {
 
 const SAFE_FLAGS = ["--no-optional-locks", "-c", "core.fsmonitor=false"];
 
-function runGit(args: string[], cwd: string, maxBuffer = 64 * 1024 * 1024): Buffer {
+export function runGit(
+  args: string[],
+  cwd: string,
+  maxBuffer = 64 * 1024 * 1024,
+): Buffer {
   const result = spawnSync("git", [...SAFE_FLAGS, ...args], {
     cwd,
     env: neutralizedEnv(),
