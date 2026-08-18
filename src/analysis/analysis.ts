@@ -1,6 +1,7 @@
 import { computeCentrality } from "../graph/centrality.js";
 import { buildCodeGraph, type CodeGraph } from "../graph/code-graph.js";
 import { type Community, detectCommunities } from "../graph/communities.js";
+import { type DeadCodeEntry, detectDeadCode } from "../graph/dead-code.js";
 import { mineHistory } from "../history/git-history.js";
 import type { ScanResult } from "../snapshot.js";
 import { mapDiff } from "./diff-map.js";
@@ -17,6 +18,7 @@ export interface Analysis {
   maxInDegree: number;
   historyWindow: number;
   communities: Community[];
+  deadCode: DeadCodeEntry[];
 }
 
 export function analyze(
@@ -30,6 +32,7 @@ export function analyze(
   const changedSymbols = mapDiff(root, scan.fileFacts, denylist, changedPaths);
   const history = mineHistory(root, denylist, HISTORY_WINDOW);
   const communities = detectCommunities(graph);
+  const deadCode = detectDeadCode(graph, scan.fileFacts);
 
   const churn = new Map(history.churn.map((c) => [c.path, c.count]));
   const maxChurn = history.churn.reduce((m, c) => Math.max(m, c.count), 0);
@@ -45,5 +48,6 @@ export function analyze(
     maxInDegree,
     historyWindow: HISTORY_WINDOW,
     communities,
+    deadCode,
   };
 }

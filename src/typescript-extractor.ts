@@ -5,6 +5,7 @@ import type {
   ImportFact,
   RationaleFact,
   ReceiverKind,
+  RouteFact,
   SymbolFact,
   SymbolKind,
 } from "./model.js";
@@ -14,12 +15,26 @@ export interface ExtractionResult {
   imports: ImportFact[];
   calls: CallFact[];
   rationale: RationaleFact[];
+  routes: RouteFact[];
 }
 
 const TEST_PATH_RE =
   /(?:^|\/)(?:__tests__|test|tests|__mocks__|__fixtures__)\/|\.(?:test|spec)\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i;
 
 const RATIONALE_RE = /\b(WHY|NOTE|HACK|TODO|FIXME)\b[:\s]*(.*)/i;
+
+const HTTP_VERBS = new Set([
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+  "all",
+  "head",
+  "options",
+]);
+const ROUTER_BASES = new Set(["app", "router", "server", "route", "routes", "api"]);
+const DECORATOR_RE = /^(Get|Post|Put|Patch|Delete|All|Head|Options)$/;
 
 export function isTestPath(path: string): boolean {
   return TEST_PATH_RE.test(path);
@@ -50,6 +65,7 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
   const imports: ImportFact[] = [];
   const calls: CallFact[] = [];
   const rationale: RationaleFact[] = [];
+  const routes: RouteFact[] = [];
   const callerStack: string[] = [];
 
   const lineOf = (pos: number): number =>
@@ -185,6 +201,11 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
         receiver: recv,
         range: { startLine: lineOf(start), endLine: lineOf(end) },
       });
+
+      const route = extractRoute(node, sourceFile, lineOf, caller);
+      if (route) {
+        routes.push(route);
+      }
     }
 
     // --- Symbol extraction with caller stack ---
@@ -278,7 +299,7 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
   };
 
   visit(sourceFile);
-  return { symbols, imports, calls, rationale };
+  return { symbols, imports, calls, rationale, routes };
 }
 
 function classifyReceiver(expr: ts.Expression): ReceiverKind {
@@ -292,6 +313,57 @@ function classifyReceiver(expr: ts.Expression): ReceiverKind {
     return "identifier";
   }
   return "unresolved";
+}
+
+function extractRoute(
+  node: ts.CallExpression,
+  sourceFile: ts.SourceFile,
+  lineOf: (pos: number) => number,
+  caller: string,
+): RouteFact | null {
+  const expr = node.expression;
+  let method: string | null = null;
+
+  if (ts.isPropertyAccessExpression(expr)) {
+    const baseText = expr.expression.getText(sourceFile).split(".").pop() ?? "";
+    const verb = expr.name.text.toLowerCase();
+    if (HTTP_VERBS.has(verb) && (ROUTER_BASES.has(baseText) || baseText === "this")) {
+      method = verb.toUpperCase();
+    }
+  } else if (ts.isIdentifier(expr) && DECORATOR_RE.test(expr.text)) {
+    method = expr.text.toUpperCase();
+  }
+
+  if (!method) {
+    return null;
+  }
+
+  const first = node.arguments[0];
+  if (!first || !ts.isStringLiteral(first)) {
+    return null;
+  }
+  const routePath = first.text;
+
+  let handlerName: string | null = null;
+  const last = node.arguments[node.arguments.length - 1];
+  if (last) {
+    if (ts.isIdentifier(last)) {
+      handlerName = last.text;
+    } else if (ts.isPropertyAccessExpression(last)) {
+      handlerName = last.name.text;
+    } else if (ts.isFunctionExpression(last) || ts.isArrowFunction(last)) {
+      handlerName = caller !== "" ? caller : null;
+    }
+  }
+
+  const start = node.getStart(sourceFile);
+  const end = node.getEnd();
+  return {
+    method,
+    path: routePath,
+    handlerName,
+    range: { startLine: lineOf(start), endLine: lineOf(end) },
+  };
 }
 
 function extractRationale(

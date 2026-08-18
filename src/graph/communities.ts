@@ -144,7 +144,7 @@ function pruneComponent(
 
   // Iteratively remove the weakest edge until the component splits into
   // multiple connected components, or until no internal edges remain.
-  let current = comp;
+  const current = comp;
   while (current.length > oversizeLimit) {
     const weakest = weakestEdge(current, adjacency);
     if (!weakest) {

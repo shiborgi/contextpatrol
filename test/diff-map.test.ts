@@ -98,6 +98,7 @@ const FIXTURES: FileFact[] = [
     imports: [],
     calls: [],
     rationale: [],
+    routes: [],
   },
 ];
 

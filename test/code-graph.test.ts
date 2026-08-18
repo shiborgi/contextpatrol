@@ -79,6 +79,7 @@ const FIXTURES: FileFact[] = [
       },
     ],
     rationale: [],
+    routes: [],
   },
   {
     path: "src/index.ts",
@@ -125,6 +126,7 @@ const FIXTURES: FileFact[] = [
       },
     ],
     rationale: [],
+    routes: [],
   },
   {
     path: "test/auth.test.ts",
@@ -158,6 +160,7 @@ const FIXTURES: FileFact[] = [
     ],
     calls: [],
     rationale: [],
+    routes: [],
   },
 ];
 
@@ -246,6 +249,7 @@ test("tested-by fallback matches by path stem without imports", () => {
       imports: [],
       calls: [],
       rationale: [],
+      routes: [],
     },
     {
       path: "test/util.test.ts",
@@ -257,6 +261,7 @@ test("tested-by fallback matches by path stem without imports", () => {
       imports: [],
       calls: [],
       rationale: [],
+      routes: [],
     },
   ];
   const g = buildCodeGraph(noImportsTest, ["src/util.ts", "test/util.test.ts"]);

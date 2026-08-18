@@ -132,6 +132,32 @@
                   "cohesion": { "type": "number" }
                 }
               }
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "method", "path", "handler"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "method": { "type": "string" },
+                  "path": { "type": "string" },
+                  "handler": { "type": ["string", "null"] }
+                }
+              }
+            },
+            "deadCode": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["qualifiedName", "confidence"],
+                "properties": {
+                  "qualifiedName": { "type": "string" },
+                  "confidence": { "type": "number" }
+                }
+              }
             }
           }
         },

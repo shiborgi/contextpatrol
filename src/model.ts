@@ -50,6 +50,13 @@ export interface RationaleFact {
   range: { startLine: number; endLine: number };
 }
 
+export interface RouteFact {
+  method: string;
+  path: string;
+  handlerName: string | null;
+  range: { startLine: number; endLine: number };
+}
+
 export interface FileFact {
   path: string;
   language: "typescript" | "javascript" | "markdown" | "json" | "other";
@@ -60,4 +67,5 @@ export interface FileFact {
   imports: ImportFact[];
   calls: CallFact[];
   rationale: RationaleFact[];
+  routes: RouteFact[];
 }

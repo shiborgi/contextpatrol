@@ -111,6 +111,28 @@ export const graphSectionSchema = z
           .strict(),
       )
       .optional(),
+    routes: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            method: z.string(),
+            path: z.string(),
+            handler: z.string().nullable(),
+          })
+          .strict(),
+      )
+      .optional(),
+    deadCode: z
+      .array(
+        z
+          .object({
+            qualifiedName: z.string(),
+            confidence: z.number(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

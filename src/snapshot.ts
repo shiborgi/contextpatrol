@@ -91,7 +91,7 @@ export async function scanWorkspace(
     const isTsOrJs = language === "typescript" || language === "javascript";
     const extraction: ExtractionResult = isTsOrJs
       ? extractSymbols(path, read.content)
-      : { symbols: [], imports: [], calls: [], rationale: [] };
+      : { symbols: [], imports: [], calls: [], rationale: [], routes: [] };
 
     fileFacts.push({
       path,
@@ -103,6 +103,7 @@ export async function scanWorkspace(
       imports: extraction.imports,
       calls: extraction.calls,
       rationale: extraction.rationale,
+      routes: extraction.routes,
     });
 
     if (dirtySet.has(path)) {

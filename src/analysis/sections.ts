@@ -38,6 +38,22 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
     };
   });
 
+  const routes = scan.fileFacts
+    .flatMap((file) =>
+      file.routes.map((r) => ({
+        id: `route:${file.path}#${r.method} ${r.path}`,
+        method: r.method,
+        path: redact(r.path),
+        handler: r.handlerName ? redact(r.handlerName) : null,
+      })),
+    )
+    .sort((a, b) => compareBytewise(a.id, b.id));
+
+  const deadCode = analysis.deadCode.map((d) => ({
+    qualifiedName: redact(d.qualifiedName),
+    confidence: d.confidence,
+  }));
+
   const graphSection: GraphSection = {
     fileCount: scan.fileFacts.length,
     symbolCount,
@@ -51,6 +67,12 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
 
   if (communities.length > 0) {
     graphSection.communities = communities;
+  }
+  if (routes.length > 0) {
+    graphSection.routes = routes;
+  }
+  if (deadCode.length > 0) {
+    graphSection.deadCode = deadCode;
   }
 
   return graphSection;
