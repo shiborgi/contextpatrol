@@ -158,6 +158,32 @@
                   "confidence": { "type": "number" }
                 }
               }
+            },
+            "surprises": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to", "score", "reasons"],
+                "properties": {
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                  "score": { "type": "number" },
+                  "reasons": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["text", "nodeId"],
+                "properties": {
+                  "text": { "type": "string" },
+                  "nodeId": { "type": "string" }
+                }
+              }
             }
           }
         },

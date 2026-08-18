@@ -2,6 +2,8 @@ import { computeCentrality } from "../graph/centrality.js";
 import { buildCodeGraph, type CodeGraph } from "../graph/code-graph.js";
 import { type Community, detectCommunities } from "../graph/communities.js";
 import { type DeadCodeEntry, detectDeadCode } from "../graph/dead-code.js";
+import { generateQuestions, type Question } from "../graph/questions.js";
+import { detectSurprises, type Surprise } from "../graph/surprises.js";
 import { mineHistory } from "../history/git-history.js";
 import type { ScanResult } from "../snapshot.js";
 import { mapDiff } from "./diff-map.js";
@@ -19,6 +21,8 @@ export interface Analysis {
   historyWindow: number;
   communities: Community[];
   deadCode: DeadCodeEntry[];
+  surprises: Surprise[];
+  questions: Question[];
 }
 
 export function analyze(
@@ -33,6 +37,15 @@ export function analyze(
   const history = mineHistory(root, denylist, HISTORY_WINDOW);
   const communities = detectCommunities(graph);
   const deadCode = detectDeadCode(graph, scan.fileFacts);
+  const surprises = detectSurprises(graph, communities, godSymbols, scan.fileFacts);
+  const questions = generateQuestions({
+    graph,
+    communities,
+    godSymbols,
+    surprises,
+    deadCode,
+    fileFacts: scan.fileFacts,
+  });
 
   const churn = new Map(history.churn.map((c) => [c.path, c.count]));
   const maxChurn = history.churn.reduce((m, c) => Math.max(m, c.count), 0);
@@ -49,5 +62,7 @@ export function analyze(
     historyWindow: HISTORY_WINDOW,
     communities,
     deadCode,
+    surprises,
+    questions,
   };
 }

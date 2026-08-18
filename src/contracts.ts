@@ -133,6 +133,28 @@ export const graphSectionSchema = z
           .strict(),
       )
       .optional(),
+    surprises: z
+      .array(
+        z
+          .object({
+            from: z.string(),
+            to: z.string(),
+            score: z.number(),
+            reasons: z.array(z.string()),
+          })
+          .strict(),
+      )
+      .optional(),
+    questions: z
+      .array(
+        z
+          .object({
+            text: z.string(),
+            nodeId: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

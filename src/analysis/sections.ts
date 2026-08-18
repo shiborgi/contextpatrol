@@ -54,6 +54,18 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
     confidence: d.confidence,
   }));
 
+  const surprises = analysis.surprises.map((s) => ({
+    from: redact(s.from),
+    to: redact(s.to),
+    score: s.score,
+    reasons: s.reasons,
+  }));
+
+  const questions = analysis.questions.map((q) => ({
+    text: redact(q.text),
+    nodeId: redact(q.nodeId),
+  }));
+
   const graphSection: GraphSection = {
     fileCount: scan.fileFacts.length,
     symbolCount,
@@ -73,6 +85,12 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
   }
   if (deadCode.length > 0) {
     graphSection.deadCode = deadCode;
+  }
+  if (surprises.length > 0) {
+    graphSection.surprises = surprises;
+  }
+  if (questions.length > 0) {
+    graphSection.questions = questions;
   }
 
   return graphSection;
