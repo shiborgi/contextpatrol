@@ -9,6 +9,9 @@ import { verifyUnchanged } from "./pipeline/verify.js";
 
 export interface PackOptions {
   extraDenylist?: readonly string[];
+  /** Test-only hook invoked after scanning but before source-change
+   * verification; never set in production. */
+  onAfterScan?: () => void | Promise<void>;
 }
 
 export async function pack(
@@ -34,6 +37,10 @@ export async function pack(
     normalized.intent,
     analysis,
   );
+
+  if (options.onAfterScan) {
+    await options.onAfterScan();
+  }
 
   await verifyUnchanged(identity, denylist, scan);
 

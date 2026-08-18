@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { PackRequest } from "../src/contracts.js";
+import { PatrolError } from "../src/errors.js";
 import { pack } from "../src/pack.js";
 
 function git(args: string[], cwd: string): string {
@@ -119,6 +120,95 @@ test("pack applies the default denylist to AST files", async () => {
     const titles = capsule.evidence.map((e) => e.title);
     assert.equal(titles.includes("credential"), false);
     assert.ok(capsule.warnings.some((w) => w.includes("denylist")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("two consecutive packs with graph+review produce identical capsuleDigest", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const request: PackRequest = {
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "auth token rotation",
+      focus: ["architecture", "symbols", "graph", "review"],
+      tokenBudget: 4000,
+    };
+    const a = await pack(request);
+    const b = await pack(request);
+    assert.equal(a.capsuleDigest, b.capsuleDigest);
+    assert.ok(a.sections.graph);
+    assert.ok(a.sections.review);
+    assert.ok(a.sections.coverage);
+  } finally {
+    cleanup();
+  }
+});
+
+test("dirty diff maps hunks to symbols and computes risk", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    // Mutate a line inside AuthService.rotate (tracked file becomes dirty)
+    const modified = [
+      "export class AuthService {",
+      "  rotate(secret: string): string {",
+      "    return secret + '-rotated!';",
+      "  }",
+      "}",
+      "",
+      "export function tokenize(input: string): string[] {",
+      "  return input.split(' ');",
+      "}",
+      "",
+    ].join("\n");
+    writeFileSync(join(repo, "src", "auth.ts"), modified);
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "auth rotation",
+      focus: ["symbols", "review"],
+      tokenBudget: 4000,
+      changedPaths: ["src/auth.ts"],
+    });
+
+    assert.ok(capsule.sections.review);
+    assert.ok(
+      capsule.sections.review.changedSymbols.includes("src/auth.ts#AuthService.rotate"),
+    );
+    const riskEntry = capsule.sections.review.risk.find(
+      (r) => r.qualifiedName === "src/auth.ts#AuthService.rotate",
+    );
+    assert.ok(riskEntry);
+    assert.ok(riskEntry.factors.length > 0);
+    assert.equal(capsule.sections.coverage.historyWindow, 2000);
+  } finally {
+    cleanup();
+  }
+});
+
+test("SOURCE_CHANGED fires on concurrent modification", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const request: PackRequest = {
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "auth",
+      focus: ["symbols"],
+      tokenBudget: 800,
+    };
+    let mutated = false;
+    await assert.rejects(
+      pack(request, {
+        onAfterScan: () => {
+          writeFileSync(join(repo, "src", "auth.ts"), "export const changed = 1;\n");
+          mutated = true;
+        },
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "SOURCE_CHANGED",
+    );
+    assert.equal(mutated, true);
   } finally {
     cleanup();
   }

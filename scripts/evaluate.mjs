@@ -62,8 +62,25 @@ const request = {
 const requestFile = join(repo, "request.json");
 writeFileSync(requestFile, JSON.stringify(request));
 
+const reviewRequest = {
+  protocolVersion: 1,
+  workspace: repo,
+  intent: "auth token rotation",
+  focus: ["graph", "review"],
+  tokenBudget: 2000,
+};
+const reviewRequestFile = join(repo, "review-request.json");
+writeFileSync(reviewRequestFile, JSON.stringify(reviewRequest));
+
 function run() {
   const out = execFileSync("node", [bin, "pack", "--request", requestFile], {
+    encoding: "utf8",
+  });
+  return JSON.parse(out);
+}
+
+function runReview() {
+  const out = execFileSync("node", [bin, "pack", "--request", reviewRequestFile], {
     encoding: "utf8",
   });
   return JSON.parse(out);
@@ -124,6 +141,42 @@ check("denylist excludes .env", () => {
   const text = JSON.stringify(first);
   if (text.includes(".env")) {
     throw new Error(".env path present in capsule");
+  }
+});
+
+const reviewCapsule = runReview();
+
+check("graph section present", () => {
+  if (!reviewCapsule.sections?.graph) {
+    throw new Error("graph section missing");
+  }
+  if (reviewCapsule.sections.graph.fileCount <= 0) {
+    throw new Error("graph.fileCount not positive");
+  }
+});
+
+check("review section present", () => {
+  if (!reviewCapsule.sections?.review) {
+    throw new Error("review section missing");
+  }
+});
+
+check("coverage section present", () => {
+  if (!reviewCapsule.sections?.coverage) {
+    throw new Error("coverage section missing");
+  }
+  if (!Array.isArray(reviewCapsule.sections.coverage.unresolvedCalls)) {
+    throw new Error("unresolvedCalls is not an array");
+  }
+});
+
+check("review secret never leaked", () => {
+  const text = JSON.stringify(reviewCapsule);
+  if (text.includes("super-secret-value")) {
+    throw new Error("secret present in review capsule");
+  }
+  if (text.includes(".env")) {
+    throw new Error(".env path present in review capsule");
   }
 });
 
