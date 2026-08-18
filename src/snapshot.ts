@@ -5,6 +5,7 @@ import { digestOf } from "./hash.js";
 import type { FileFact } from "./model.js";
 import { isDenied } from "./security.js";
 import { readSource } from "./source-reader.js";
+import type { ExtractionResult } from "./typescript-extractor.js";
 import { extractSymbols } from "./typescript-extractor.js";
 
 export type Language = FileFact["language"];
@@ -87,10 +88,10 @@ export async function scanWorkspace(
     fileManifest.push({ path, digest });
 
     const language = languageOf(path);
-    const symbols =
-      language === "typescript" || language === "javascript"
-        ? extractSymbols(path, read.content)
-        : [];
+    const isTsOrJs = language === "typescript" || language === "javascript";
+    const extraction: ExtractionResult = isTsOrJs
+      ? extractSymbols(path, read.content)
+      : { symbols: [], imports: [], calls: [], rationale: [] };
 
     fileFacts.push({
       path,
@@ -98,7 +99,10 @@ export async function scanWorkspace(
       size: read.size,
       lines: read.content.split("\n").length,
       digest,
-      symbols,
+      symbols: extraction.symbols,
+      imports: extraction.imports,
+      calls: extraction.calls,
+      rationale: extraction.rationale,
     });
 
     if (dirtySet.has(path)) {

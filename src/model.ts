@@ -19,6 +19,34 @@ export interface SymbolFact {
   range: { startLine: number; endLine: number };
   exported: boolean;
   confidence: number;
+  isTest: boolean;
+}
+
+export type ImportKind = "named" | "default" | "namespace" | "side-effect";
+
+export interface ImportFact {
+  kind: ImportKind;
+  importedName: string | null;
+  moduleSpecifier: string;
+  range: { startLine: number; endLine: number };
+}
+
+export type ReceiverKind = "identifier" | "property" | "this" | "unresolved";
+
+export interface CallFact {
+  callerQualifiedName: string;
+  calleeText: string;
+  receiver: ReceiverKind;
+  range: { startLine: number; endLine: number };
+}
+
+export type RationaleMarker = "WHY" | "NOTE" | "HACK" | "TODO" | "FIXME";
+
+export interface RationaleFact {
+  marker: RationaleMarker;
+  symbolQualifiedName: string;
+  text: string;
+  range: { startLine: number; endLine: number };
 }
 
 export interface FileFact {
@@ -28,4 +56,7 @@ export interface FileFact {
   lines: number;
   digest: string;
   symbols: SymbolFact[];
+  imports: ImportFact[];
+  calls: CallFact[];
+  rationale: RationaleFact[];
 }
