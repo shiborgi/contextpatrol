@@ -20,6 +20,7 @@ export interface SymbolFact {
   exported: boolean;
   confidence: number;
   isTest: boolean;
+  heritage: { extends: string[]; implements: string[] };
 }
 
 export type ImportKind = "named" | "default" | "namespace" | "side-effect";

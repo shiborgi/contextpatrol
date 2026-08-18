@@ -21,6 +21,10 @@ const TEST_PATH_RE =
 
 const RATIONALE_RE = /\b(WHY|NOTE|HACK|TODO|FIXME)\b[:\s]*(.*)/i;
 
+export function isTestPath(path: string): boolean {
+  return TEST_PATH_RE.test(path);
+}
+
 export function extractSymbols(path: string, source: string): ExtractionResult {
   const isTs = /\.(ts|tsx|mts|cts)$/i.test(path);
   const isTsx = /\.(tsx|jsx)$/i.test(path);
@@ -57,13 +61,17 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
     node: ts.Node,
     qualifiedName: string,
     exported: boolean,
+    heritage: { extends: string[]; implements: string[] } = {
+      extends: [],
+      implements: [],
+    },
   ): void => {
     const start = node.getStart(sourceFile);
     const end = node.getEnd();
     const signature = firstLine(source.slice(start, end), 160);
     const sourceText = source.slice(start, end).trim();
     const jsdoc = leadingJsDoc(source, node.getFullStart());
-    const isTest = TEST_PATH_RE.test(path);
+    const isTest = isTestPath(path);
     symbols.push({
       kind,
       name,
@@ -76,6 +84,7 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
       exported,
       confidence: 1.0,
       isTest,
+      heritage,
     });
 
     // Extract rationale markers from leading comments
@@ -89,6 +98,24 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
 
   const isReachable = (name: string): boolean =>
     exportedNames.has(name) || defaultExport === name;
+
+  const heritageOf = (
+    node: ts.ClassDeclaration | ts.InterfaceDeclaration,
+  ): { extends: string[]; implements: string[] } => {
+    const ext: string[] = [];
+    const impl: string[] = [];
+    for (const clause of node.heritageClauses ?? []) {
+      for (const t of clause.types) {
+        const name = t.expression.getText(sourceFile);
+        if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
+          ext.push(name);
+        } else {
+          impl.push(name);
+        }
+      }
+    }
+    return { extends: ext, implements: impl };
+  };
 
   const visit = (node: ts.Node): void => {
     // --- Import extraction ---
@@ -177,7 +204,14 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
     } else if (ts.isClassDeclaration(node) && node.name) {
       const className = node.name.text;
       const classExported = isExported(node) || isReachable(className);
-      pushSymbol("class", className, node, `${path}#${className}`, classExported);
+      pushSymbol(
+        "class",
+        className,
+        node,
+        `${path}#${className}`,
+        classExported,
+        heritageOf(node),
+      );
       for (const member of node.members) {
         if (ts.isMethodDeclaration(member) && member.name) {
           const methodName = nameText(member.name);
@@ -202,6 +236,7 @@ export function extractSymbols(path: string, source: string): ExtractionResult {
         node,
         `${path}#${node.name.text}`,
         isExported(node) || isReachable(node.name.text),
+        heritageOf(node),
       );
     } else if (ts.isTypeAliasDeclaration(node)) {
       pushSymbol(
@@ -284,11 +319,11 @@ function extractRationale(
   }
 }
 
-function nameText(name: ts.Node): string {
-  if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
-    return name.text;
+function nameText(node: ts.Node): string {
+  if (ts.isIdentifier(node) || ts.isStringLiteral(node)) {
+    return node.text;
   }
-  return name.getText();
+  return node.getText();
 }
 
 function firstLine(text: string, max: number): string {
