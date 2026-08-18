@@ -3,5 +3,15 @@
   "verification": {
     "argv": ["npm", "run", "check"],
     "timeoutMs": 180000
+  },
+  "remote": {
+    "enabled": true,
+    "repo": "shiborgi/contextpatrol",
+    "gitRemote": "origin",
+    "tokenEnv": "GITHUB_TOKEN",
+    "pushOnShip": true,
+    "wiki": true,
+    "milestones": true,
+    "issues": true
   }
 }
