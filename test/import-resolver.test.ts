@@ -107,3 +107,23 @@ test(".js specifier prefers an exact .js file over its .ts counterpart", () => {
     path: "src/pkg/inner.js",
   });
 });
+
+test("bin shim importing dist/ maps back onto the source tree", () => {
+  assert.deepEqual(
+    resolveImport("../dist/src/cli.js", "bin/contextpatrol.js", [
+      "src/cli.ts",
+      "src/pack.ts",
+    ]),
+    {
+      external: false,
+      path: "src/cli.ts",
+    },
+  );
+});
+
+test("dist/ strip does not apply to non-bin importers", () => {
+  assert.deepEqual(resolveImport("../dist/src/cli.js", "src/a.ts", ["src/cli.ts"]), {
+    external: false,
+    path: null,
+  });
+});

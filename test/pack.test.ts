@@ -448,3 +448,43 @@ test("small budget drops optional insights but keeps required graph and coverage
     cleanup();
   }
 });
+
+test("source evidence ids use the source: prefix", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "auth token rotation",
+      focus: ["source"],
+      tokenBudget: 4000,
+    });
+
+    const sourceEvidence = capsule.evidence.filter((e) => e.kind === "source");
+    assert.ok(sourceEvidence.length > 0);
+    for (const e of sourceEvidence) {
+      assert.ok(e.id.startsWith("source:"));
+      assert.equal(e.id.startsWith("src:"), false);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("self-repo pack no longer flags runCli as dead code", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 4000,
+  });
+
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  const dead = graph.deadCode ?? [];
+  assert.equal(
+    dead.some((d) => d.qualifiedName === "src/cli.ts#runCli"),
+    false,
+  );
+});

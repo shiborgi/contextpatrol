@@ -24,6 +24,29 @@ function tsCounterpart(target: string): string | null {
   return null;
 }
 
+/** Probe a normalized target against eligible paths: exact, .js→.ts remap,
+ * extension append, then index. Returns the resolved path or null. */
+function probe(target: string, eligible: Set<string>): string | null {
+  if (eligible.has(target)) {
+    return target;
+  }
+  const remapped = tsCounterpart(target);
+  if (remapped !== null && eligible.has(remapped)) {
+    return remapped;
+  }
+  for (const ext of EXTENSIONS) {
+    if (eligible.has(`${target}${ext}`)) {
+      return `${target}${ext}`;
+    }
+  }
+  for (const ext of EXTENSIONS) {
+    if (eligible.has(`${target}/index${ext}`)) {
+      return `${target}/index${ext}`;
+    }
+  }
+  return null;
+}
+
 export function resolveImport(
   specifier: string,
   sourcePath: string,
@@ -44,23 +67,20 @@ export function resolveImport(
 
   const eligible = new Set(eligiblePaths);
 
-  if (eligible.has(target)) {
-    return { external: false, path: target };
+  const resolved = probe(target, eligible);
+  if (resolved !== null) {
+    return { external: false, path: resolved };
   }
-  const remapped = tsCounterpart(target);
-  if (remapped !== null && eligible.has(remapped)) {
-    return { external: false, path: remapped };
-  }
-  for (const ext of EXTENSIONS) {
-    if (eligible.has(`${target}${ext}`)) {
-      return { external: false, path: `${target}${ext}` };
+
+  // A bin/ shim imports the compiled output under dist/; map it back onto the
+  // eligible source tree (dist/src/cli.js -> src/cli.ts).
+  if (sourcePath.startsWith("bin/") && target.startsWith("dist/")) {
+    const stripped = probe(target.slice(5), eligible);
+    if (stripped !== null) {
+      return { external: false, path: stripped };
     }
   }
-  for (const ext of EXTENSIONS) {
-    if (eligible.has(`${target}/index${ext}`)) {
-      return { external: false, path: `${target}/index${ext}` };
-    }
-  }
+
   return { external: false, path: null };
 }
 

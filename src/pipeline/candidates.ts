@@ -13,7 +13,7 @@ export interface Candidate {
   clipable: boolean;
 }
 
-function symbolId(symbol: SymbolFact, kind: "sym" | "src"): string {
+function symbolId(symbol: SymbolFact, kind: "sym" | "source"): string {
   return `${kind}:${symbol.qualifiedName}#L${symbol.range.startLine}-${symbol.range.endLine}`;
 }
 
@@ -86,7 +86,7 @@ function symbolEvidence(symbol: SymbolFact): Evidence {
 function sourceEvidence(symbol: SymbolFact): Evidence {
   const text = redact(symbol.source);
   return {
-    id: symbolId(symbol, "src"),
+    id: symbolId(symbol, "source"),
     kind: "source",
     title: symbol.name,
     text,
