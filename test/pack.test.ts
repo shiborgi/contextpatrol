@@ -595,6 +595,19 @@ test("self-repo graph communities are not large and low-cohesion", async () => {
   }
 });
 
+test("self-repo graph pack with focus [graph] at tokenBudget 8000 keeps communities", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 8000,
+  });
+
+  const communities = capsule.sections.graph?.communities ?? [];
+  assert.ok(communities.length > 0, "expected non-empty communities at budget 8000");
+});
+
 test("architecture evidence lists god symbols and boundary files when present", async () => {
   const { repo, cleanup } = makeInsightRepo();
   try {

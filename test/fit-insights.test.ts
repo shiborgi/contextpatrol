@@ -58,24 +58,72 @@ test("drops every optional insight when remaining is zero, keeping required fiel
   assert.ok(result.coverage);
 });
 
-test("drops questions first, then surprises, respecting the fixed order", () => {
+test("drops routes first, then deadCode, surprises, communities, questions last", () => {
   const sections = sectionsWithGraph();
 
-  const withoutQuestions: Sections = {
+  const withoutRoutes: Sections = {
     ...sections,
     graph: { ...sections.graph! },
   };
-  delete withoutQuestions.graph!.questions;
+  delete withoutRoutes.graph!.routes;
 
   const result = fitOptionalInsights(
     sections,
-    estimateTokens(canonicalJson(withoutQuestions)),
+    estimateTokens(canonicalJson(withoutRoutes)),
   );
 
-  // only questions is dropped; surprises and the rest remain
-  assert.equal(result.graph?.questions, undefined);
+  // only routes is dropped; communities and questions remain (they drop later)
+  assert.equal(result.graph?.routes, undefined);
+  assert.ok(result.graph?.communities);
+  assert.ok(result.graph?.questions);
   assert.ok(result.graph?.surprises);
   assert.ok(result.graph?.deadCode);
-  assert.ok(result.graph?.routes);
+});
+
+test("stepwise drop order: routes -> deadCode -> surprises -> communities -> questions", () => {
+  // Start with full, progressively lower the budget to force one drop at a time
+  let result = sectionsWithGraph();
+
+  // After dropping routes
+  const noRoutes = { ...result, graph: { ...result.graph! } };
+  delete noRoutes.graph!.routes;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noRoutes)));
+  assert.equal(result.graph?.routes, undefined);
+  assert.ok(result.graph?.deadCode);
+  assert.ok(result.graph?.surprises);
   assert.ok(result.graph?.communities);
+  assert.ok(result.graph?.questions);
+
+  // After dropping deadCode
+  const noDead = { ...result, graph: { ...result.graph! } };
+  delete noDead.graph!.deadCode;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noDead)));
+  assert.equal(result.graph?.deadCode, undefined);
+  assert.ok(result.graph?.surprises);
+  assert.ok(result.graph?.communities);
+  assert.ok(result.graph?.questions);
+
+  // After dropping surprises
+  const noSurprises = { ...result, graph: { ...result.graph! } };
+  delete noSurprises.graph!.surprises;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noSurprises)));
+  assert.equal(result.graph?.surprises, undefined);
+  assert.ok(result.graph?.communities);
+  assert.ok(result.graph?.questions);
+
+  // After dropping communities
+  const noCommunities = { ...result, graph: { ...result.graph! } };
+  delete noCommunities.graph!.communities;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noCommunities)));
+  assert.equal(result.graph?.communities, undefined);
+  assert.ok(result.graph?.questions);
+
+  // After dropping questions (only required fields + coverage remain)
+  const noQuestions = { ...result, graph: { ...result.graph! } };
+  delete noQuestions.graph!.questions;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noQuestions)));
+  assert.equal(result.graph?.questions, undefined);
+  assert.ok(result.graph?.fileCount);
+  assert.ok(result.graph?.godSymbols);
+  assert.ok(result.coverage);
 });
