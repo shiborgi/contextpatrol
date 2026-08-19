@@ -157,3 +157,34 @@ test("falls back to whole file scope for unchanged changedPaths", () => {
     cleanup();
   }
 });
+
+test("uses three-dot range for hunks when diffRange provided (baseRef style)", () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const sha1 = git(["rev-parse", "HEAD"], repo).trim();
+
+    // make a change and commit
+    const modified = [
+      "export class AuthService {",
+      "  rotate() {",
+      "    console.log('rotate');",
+      "    return 1;",
+      "  }",
+      "}",
+      "export function other() {",
+      "  return 2;",
+      "}",
+    ].join("\n");
+    writeFileSync(join(repo, "src/auth.ts"), modified);
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "change rotate", "--no-gpg-sign"], repo);
+    const sha2 = git(["rev-parse", "HEAD"], repo).trim();
+
+    // using range should detect the hunk change even if worktree is now at sha2 (clean)
+    const changed = mapDiff(repo, FIXTURES, [], [], { left: sha1, right: sha2 });
+    assert.ok(changed.has("src/auth.ts#AuthService.rotate"));
+    assert.ok(changed.has("src/auth.ts#AuthService"));
+  } finally {
+    cleanup();
+  }
+});

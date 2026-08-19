@@ -7,12 +7,16 @@ export function mapDiff(
   fileFacts: FileFact[],
   denylist: readonly string[],
   changedPaths: string[] = [],
+  diffRange?: { left: string; right: string },
 ): Set<string> {
   const changedSymbols = new Set<string>();
 
   let diffOutput = "";
   try {
-    diffOutput = runGit(["diff", "--unified=0", "HEAD"], root).toString("utf8");
+    const args = diffRange
+      ? ["diff", "--unified=0", `${diffRange.left}...${diffRange.right}`]
+      : ["diff", "--unified=0", "HEAD"];
+    diffOutput = runGit(args, root).toString("utf8");
   } catch {
     // If git diff fails, treat changedPaths as whole-file scope if provided
     diffOutput = "";
@@ -26,7 +30,7 @@ export function mapDiff(
     if (line.startsWith("diff --git ")) {
       // Parse path from diff --git a/path b/path
       const match = /b\/(.+)$/.exec(line);
-      if (match && match[1]) {
+      if (match?.[1]) {
         const rawPath = match[1].trim();
         const canonical = canonicalizePath(rawPath);
         if (canonical !== null && !isDenied(canonical, denylist)) {

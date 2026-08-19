@@ -38,6 +38,7 @@ export const packRequestSchema = z
     tokenBudget: z.number().int().min(LIMITS.minBudget).max(LIMITS.maxBudget),
     changedPaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
     gitRef: z.string().min(1).optional(),
+    baseRef: z.string().min(1).optional(),
     includePaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
     excludePaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
   })

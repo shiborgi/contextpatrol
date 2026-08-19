@@ -30,6 +30,7 @@ export function analyze(
   root: string,
   denylist: readonly string[],
   changedPaths: string[],
+  diffRange?: { left: string; right: string },
 ): Analysis {
   const graph = buildCodeGraph(scan.fileFacts, scan.eligiblePaths);
   const exportedNames = new Set(
@@ -38,7 +39,13 @@ export function analyze(
     ),
   );
   const { godSymbols, boundaryFiles } = computeCentrality(graph, exportedNames);
-  const changedSymbols = mapDiff(root, scan.fileFacts, denylist, changedPaths);
+  const changedSymbols = mapDiff(
+    root,
+    scan.fileFacts,
+    denylist,
+    changedPaths,
+    diffRange,
+  );
   const history = mineHistory(root, denylist, HISTORY_WINDOW);
   const communities = detectCommunities(graph);
   const deadCode = detectDeadCode(graph, scan.fileFacts);

@@ -11,6 +11,7 @@ export interface NormalizedRequest {
   tokenBudget: number;
   changedPaths: string[];
   gitRef?: string;
+  baseRef?: string;
   includePaths?: string[];
   excludePaths?: string[];
 }
@@ -46,6 +47,15 @@ export function normalize(request: PackRequest): NormalizedRequest {
     gitRef = trimmed;
   }
 
+  let baseRef: string | undefined;
+  if (request.baseRef !== undefined) {
+    const trimmed = request.baseRef.trim();
+    if (trimmed === "") {
+      throw new PatrolError("REQUEST_INVALID", "baseRef is empty");
+    }
+    baseRef = trimmed;
+  }
+
   const includePaths: string[] = [];
   for (const raw of request.includePaths ?? []) {
     const canonical = canonicalizePath(raw);
@@ -77,6 +87,7 @@ export function normalize(request: PackRequest): NormalizedRequest {
     tokenBudget: request.tokenBudget,
     changedPaths,
     gitRef,
+    baseRef,
     includePaths: includePaths.length > 0 ? includePaths : undefined,
     excludePaths: excludePaths.length > 0 ? excludePaths : undefined,
   };

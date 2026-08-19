@@ -22,6 +22,7 @@
       "items": { "type": "string", "minLength": 1 }
     },
     "gitRef": { "type": "string", "minLength": 1 },
+    "baseRef": { "type": "string", "minLength": 1 },
     "includePaths": {
       "type": "array",
       "maxItems": 200,

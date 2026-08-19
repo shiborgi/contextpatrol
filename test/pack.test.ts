@@ -725,6 +725,94 @@ test("invalid gitRef produces REQUEST_INVALID with empty stdout", async () => {
   }
 });
 
+test("baseRef without changedPaths computes three-dot delta for changedPaths and review symbols", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const sha1 = git(["rev-parse", "HEAD"], repo).trim();
+
+    // v2 change
+    const v2 = [
+      "export class AuthService {",
+      "  rotate(secret: string): string {",
+      "    return secret + '-v2';",
+      "  }",
+      "}",
+      "",
+      "export function tokenize(input: string): string[] {",
+      "  return input.split(' ');",
+      "}",
+      "",
+    ].join("\n");
+    writeFileSync(join(repo, "src", "auth.ts"), v2);
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "v2", "--no-gpg-sign"], repo);
+    const sha2 = git(["rev-parse", "HEAD"], repo).trim();
+
+    // baseRef = sha1, no changedPaths -> should detect the delta from sha1...sha2
+    const cap = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "review delta via baseRef",
+      focus: ["review"],
+      tokenBudget: 2000,
+      baseRef: sha1,
+    });
+    assert.equal(cap.snapshot.head, sha2);
+    assert.ok(
+      cap.changedPaths.includes("src/auth.ts"),
+      "changedPaths should be populated from three-dot",
+    );
+    assert.ok(
+      cap.sections.review?.changedSymbols.includes("src/auth.ts#AuthService.rotate"),
+      "review symbols should overlap three-dot delta",
+    );
+
+    // explicit changedPaths wins over baseRef
+    const capExplicit = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "explicit wins",
+      focus: ["review"],
+      tokenBudget: 2000,
+      baseRef: sha1,
+      changedPaths: ["src/auth.ts"],
+    });
+    assert.deepEqual(capExplicit.changedPaths, ["src/auth.ts"]);
+
+    // invalid baseRef
+    await assert.rejects(
+      pack({
+        protocolVersion: 1,
+        workspace: repo,
+        intent: "bad base",
+        focus: ["review"],
+        tokenBudget: 1000,
+        baseRef: "not-a-ref-at-all",
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "REQUEST_INVALID",
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("baseRef omitted keeps prior behaviour (no auto delta)", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const cap = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "no baseRef",
+      focus: ["symbols"],
+      tokenBudget: 1000,
+    });
+    // without base or changed, changedPaths is empty
+    assert.deepEqual(cap.changedPaths, []);
+  } finally {
+    cleanup();
+  }
+});
+
 test("includePaths restricts the scan to matching prefixes", async () => {
   const { repo, cleanup } = makeRepo();
   try {

@@ -51,6 +51,7 @@ export interface EmitInput {
   tokenBudget: number;
   changedPaths: string[];
   gitRef?: string;
+  baseRef?: string;
   includePaths?: string[];
   excludePaths?: string[];
 }
@@ -60,6 +61,7 @@ export function buildCapsule(input: EmitInput): Capsule {
     input;
   const changedPaths = input.changedPaths;
   const gitRef = input.gitRef;
+  const baseRef = input.baseRef;
   const includePaths = input.includePaths;
   const excludePaths = input.excludePaths;
 
@@ -124,6 +126,7 @@ export function buildCapsule(input: EmitInput): Capsule {
     tokenBudget,
     changedPaths,
     ...(gitRef !== undefined ? { gitRef } : {}),
+    ...(baseRef !== undefined ? { baseRef } : {}),
     ...(includePaths !== undefined ? { includePaths } : {}),
     ...(excludePaths !== undefined ? { excludePaths } : {}),
   });

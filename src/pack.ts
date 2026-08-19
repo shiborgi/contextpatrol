@@ -1,11 +1,14 @@
 import { analyze } from "./analysis/analysis.js";
 import type { Capsule, PackRequest } from "./contracts.js";
+import { resolveRef, runGit } from "./git-workspace.js";
+import { compareBytewise } from "./hash.js";
 import { analyzeWorkspace } from "./pipeline/analyze.js";
 import { buildCandidates } from "./pipeline/candidates.js";
 import { buildCapsule } from "./pipeline/emit.js";
 import { normalize } from "./pipeline/normalize.js";
 import { buildDenylist, filterAllowedPaths } from "./pipeline/policy.js";
 import { verifyUnchanged } from "./pipeline/verify.js";
+import { canonicalizePath } from "./security.js";
 
 export interface PackOptions {
   extraDenylist?: readonly string[];
@@ -25,9 +28,6 @@ export async function pack(
   ];
   const denylist = buildDenylist(extraDeny);
 
-  // Drop changed paths that the policy would deny.
-  const changedPaths = filterAllowedPaths(normalized.changedPaths, denylist);
-
   const { identity, scan, snapshot } = await analyzeWorkspace(
     normalized.workspace,
     denylist,
@@ -35,7 +35,50 @@ export async function pack(
     normalized.includePaths,
   );
 
-  const analysis = analyze(scan, identity.root, denylist, changedPaths);
+  // baseRef handling (WAVE-5.3):
+  // - always resolve if present (to fail closed with REQUEST_INVALID)
+  // - if no explicit changedPaths, compute three-dot name-only as the changed set
+  // - pass range to mapDiff only when the set was driven by baseRef (so symbols match delta)
+  let resolvedBase: string | undefined;
+  let resolvedHead: string | undefined;
+  let effectiveChangedPaths = normalized.changedPaths;
+  if (normalized.baseRef !== undefined) {
+    resolvedBase = resolveRef(identity.root, normalized.baseRef);
+    resolvedHead = snapshot.head;
+    if (normalized.changedPaths.length === 0) {
+      let diffNames = "";
+      try {
+        diffNames = runGit(
+          ["diff", "--name-only", `${resolvedBase}...${resolvedHead}`],
+          identity.root,
+        ).toString("utf8");
+      } catch {
+        diffNames = "";
+      }
+      const names = diffNames
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      const canonicals: string[] = [];
+      for (const raw of names) {
+        const canonical = canonicalizePath(raw);
+        if (canonical !== null && !canonicals.includes(canonical)) {
+          canonicals.push(canonical);
+        }
+      }
+      canonicals.sort(compareBytewise);
+      effectiveChangedPaths = canonicals;
+    }
+  }
+
+  // Drop changed paths that the policy would deny.
+  const changedPaths = filterAllowedPaths(effectiveChangedPaths, denylist);
+
+  const diffRange =
+    resolvedBase && resolvedHead && normalized.changedPaths.length === 0
+      ? { left: resolvedBase, right: resolvedHead }
+      : undefined;
+  const analysis = analyze(scan, identity.root, denylist, changedPaths, diffRange);
 
   const candidates = buildCandidates(
     normalized.focus,
@@ -68,6 +111,7 @@ export async function pack(
     tokenBudget: normalized.tokenBudget,
     changedPaths,
     gitRef: normalized.gitRef,
+    baseRef: normalized.baseRef,
     includePaths: normalized.includePaths,
     excludePaths: normalized.excludePaths,
   });
