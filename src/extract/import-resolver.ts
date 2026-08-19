@@ -5,6 +5,25 @@ export interface ResolvedImport {
 
 const EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
+// NodeNext emits `.js` specifiers for TypeScript sources; map them one-to-one
+// so a relative `.js` import resolves to the compiled `.ts` counterpart.
+// Ordered longest-first so `.mjs` matches before `.js`.
+const JS_TO_TS: Array<[string, string]> = [
+  [".mjs", ".mts"],
+  [".cjs", ".cts"],
+  [".jsx", ".tsx"],
+  [".js", ".ts"],
+];
+
+function tsCounterpart(target: string): string | null {
+  for (const [js, ts] of JS_TO_TS) {
+    if (target.endsWith(js)) {
+      return `${target.slice(0, target.length - js.length)}${ts}`;
+    }
+  }
+  return null;
+}
+
 export function resolveImport(
   specifier: string,
   sourcePath: string,
@@ -27,6 +46,10 @@ export function resolveImport(
 
   if (eligible.has(target)) {
     return { external: false, path: target };
+  }
+  const remapped = tsCounterpart(target);
+  if (remapped !== null && eligible.has(remapped)) {
+    return { external: false, path: remapped };
   }
   for (const ext of EXTENSIONS) {
     if (eligible.has(`${target}${ext}`)) {

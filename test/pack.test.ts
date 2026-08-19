@@ -379,3 +379,24 @@ test("insight fields are omitted when their signals are absent", async () => {
     cleanup();
   }
 });
+
+test("self-repo pack no longer flags analyze as dead code", async () => {
+  // process.cwd() is the repository itself; its sources use NodeNext `.js`
+  // imports, so the remapped resolver must produce the CALLS edge from
+  // src/pack.ts into src/analysis/analysis.ts#analyze.
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 4000,
+  });
+
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  const dead = graph.deadCode ?? [];
+  assert.equal(
+    dead.some((d) => d.qualifiedName === "src/analysis/analysis.ts#analyze"),
+    false,
+  );
+});

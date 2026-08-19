@@ -72,3 +72,38 @@ test("exact path with extension resolves directly", () => {
     path: "src/util.ts",
   });
 });
+
+test("NodeNext .js specifiers remap to TypeScript sources", () => {
+  assert.deepEqual(
+    resolveImport("./pack.js", "src/cli.ts", ["src/cli.ts", "src/pack.ts"]),
+    {
+      external: false,
+      path: "src/pack.ts",
+    },
+  );
+  assert.deepEqual(resolveImport("./util.js", "src/index.ts", ELIGIBLE), {
+    external: false,
+    path: "src/util.ts",
+  });
+});
+
+test(".mjs and .cjs remap to .mts and .cts, not .m.ts or .c.ts", () => {
+  const eligible = ["src/mod.mts", "src/mod.cts"];
+  assert.deepEqual(resolveImport("./mod.mjs", "src/a.ts", eligible), {
+    external: false,
+    path: "src/mod.mts",
+  });
+  assert.deepEqual(resolveImport("./mod.cjs", "src/a.ts", eligible), {
+    external: false,
+    path: "src/mod.cts",
+  });
+});
+
+test(".js specifier prefers an exact .js file over its .ts counterpart", () => {
+  // ELIGIBLE has src/pkg/inner.js (a real .js file); a .js specifier to it
+  // must not remap to a nonexistent .ts.
+  assert.deepEqual(resolveImport("./pkg/inner.js", "src/index.ts", ELIGIBLE), {
+    external: false,
+    path: "src/pkg/inner.js",
+  });
+});

@@ -277,3 +277,94 @@ test("graph building is deterministic", () => {
   const b = buildCodeGraph(FIXTURES, ELIGIBLE);
   assert.deepEqual(a, b);
 });
+
+test("NodeNext .js imports produce IMPORTS and import-scoped CALLS edges", () => {
+  const files: FileFact[] = [
+    {
+      path: "src/a.ts",
+      language: "typescript",
+      size: 50,
+      lines: 2,
+      digest: "n1",
+      symbols: [
+        {
+          kind: "function",
+          name: "caller",
+          qualifiedName: "src/a.ts#caller",
+          path: "src/a.ts",
+          signature: "function caller()",
+          jsdoc: "",
+          source: "",
+          range: { startLine: 1, endLine: 2 },
+          exported: true,
+          confidence: 1.0,
+          isTest: false,
+          heritage: { extends: [], implements: [] },
+        },
+      ],
+      imports: [
+        {
+          kind: "named",
+          importedName: "fn",
+          moduleSpecifier: "./lib.js",
+          range: { startLine: 1, endLine: 1 },
+        },
+      ],
+      calls: [
+        {
+          callerQualifiedName: "src/a.ts#caller",
+          calleeText: "fn",
+          receiver: "identifier",
+          range: { startLine: 2, endLine: 2 },
+        },
+      ],
+      rationale: [],
+      routes: [],
+    },
+    {
+      path: "src/lib.ts",
+      language: "typescript",
+      size: 50,
+      lines: 2,
+      digest: "n2",
+      symbols: [
+        {
+          kind: "function",
+          name: "fn",
+          qualifiedName: "src/lib.ts#fn",
+          path: "src/lib.ts",
+          signature: "function fn()",
+          jsdoc: "",
+          source: "",
+          range: { startLine: 1, endLine: 2 },
+          exported: true,
+          confidence: 1.0,
+          isTest: false,
+          heritage: { extends: [], implements: [] },
+        },
+      ],
+      imports: [],
+      calls: [],
+      rationale: [],
+      routes: [],
+    },
+  ];
+  const g = buildCodeGraph(files, ["src/a.ts", "src/lib.ts"]);
+
+  assert.ok(
+    g.edges.some(
+      (e) =>
+        e.kind === "IMPORTS" &&
+        e.from === "file:src/a.ts" &&
+        e.to === "file:src/lib.ts",
+    ),
+  );
+  assert.ok(
+    g.edges.some(
+      (e) =>
+        e.kind === "CALLS" &&
+        e.from === "sym:src/a.ts#caller" &&
+        e.to === "sym:src/lib.ts#fn",
+    ),
+  );
+});
