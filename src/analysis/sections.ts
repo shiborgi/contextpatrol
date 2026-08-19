@@ -11,7 +11,7 @@ import { scoreSymbolRisk } from "./risk.js";
 
 type GraphSection = z.infer<typeof graphSectionSchema>;
 
-function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
+export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
   let symbolCount = 0;
   const symbolFile = new Map<string, string>();
   for (const file of scan.fileFacts) {
@@ -71,10 +71,12 @@ function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSection {
     fileCount: scan.fileFacts.length,
     symbolCount,
     edgeCount: analysis.graph.edges.length,
-    godSymbols: analysis.godSymbols.map((g) => ({
-      qualifiedName: redact(g.qualifiedName),
-      score: g.score,
-    })),
+    godSymbols: analysis.godSymbols
+      .map((g) => ({
+        qualifiedName: redact(g.qualifiedName),
+        score: g.score,
+      }))
+      .slice(0, 20),
     boundaryFiles: analysis.boundaryFiles.map((p) => redact(p)),
   };
 
@@ -164,7 +166,7 @@ function buildReviewSection(
   };
 }
 
-function buildCoverageSection(analysis: Analysis, scan: ScanResult) {
+export function buildCoverageSection(analysis: Analysis, scan: ScanResult) {
   const languagesSeen = [...new Set(scan.fileFacts.map((f) => f.language))].sort(
     compareBytewise,
   );
@@ -174,7 +176,12 @@ function buildCoverageSection(analysis: Analysis, scan: ScanResult) {
       callerQualifiedName: redact(c.callerQualifiedName),
       count: c.count,
     }))
-    .sort((a, b) => compareBytewise(a.callerQualifiedName, b.callerQualifiedName));
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        compareBytewise(a.callerQualifiedName, b.callerQualifiedName),
+    )
+    .slice(0, 50);
 
   const skipped = scan.skipped
     .filter((s) => s.reason !== "denylist")
