@@ -11,6 +11,8 @@ export interface NormalizedRequest {
   tokenBudget: number;
   changedPaths: string[];
   gitRef?: string;
+  includePaths?: string[];
+  excludePaths?: string[];
 }
 
 export function normalize(request: PackRequest): NormalizedRequest {
@@ -44,6 +46,30 @@ export function normalize(request: PackRequest): NormalizedRequest {
     gitRef = trimmed;
   }
 
+  const includePaths: string[] = [];
+  for (const raw of request.includePaths ?? []) {
+    const canonical = canonicalizePath(raw);
+    if (canonical === null) {
+      throw new PatrolError("REQUEST_INVALID", `invalid include path: ${raw}`);
+    }
+    if (!includePaths.includes(canonical)) {
+      includePaths.push(canonical);
+    }
+  }
+  includePaths.sort(compareBytewise);
+
+  const excludePaths: string[] = [];
+  for (const raw of request.excludePaths ?? []) {
+    const canonical = canonicalizePath(raw);
+    if (canonical === null) {
+      throw new PatrolError("REQUEST_INVALID", `invalid exclude path: ${raw}`);
+    }
+    if (!excludePaths.includes(canonical)) {
+      excludePaths.push(canonical);
+    }
+  }
+  excludePaths.sort(compareBytewise);
+
   return {
     workspace: request.workspace,
     intent,
@@ -51,5 +77,7 @@ export function normalize(request: PackRequest): NormalizedRequest {
     tokenBudget: request.tokenBudget,
     changedPaths,
     gitRef,
+    includePaths: includePaths.length > 0 ? includePaths : undefined,
+    excludePaths: excludePaths.length > 0 ? excludePaths : undefined,
   };
 }

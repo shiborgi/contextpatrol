@@ -8,7 +8,7 @@ import {
   type WorkspaceIdentity,
 } from "../git-workspace.js";
 import { compareBytewise, digestOf } from "../hash.js";
-import { isDenied } from "../security.js";
+import { isDenied, matchesInclude } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
 import { readSource } from "../source-reader.js";
 
@@ -18,6 +18,7 @@ export async function verifyUnchanged(
   scan: ScanResult,
   gitRef?: string,
   expectedHead?: string,
+  includePaths?: readonly string[],
 ): Promise<void> {
   if (gitRef !== undefined) {
     const current = resolveRef(identity.root, gitRef);
@@ -38,7 +39,7 @@ export async function verifyUnchanged(
   }
 
   const afterFiles = listFiles(identity.root)
-    .filter((p) => !isDenied(p, denylist))
+    .filter((p) => !isDenied(p, denylist) && matchesInclude(p, includePaths))
     .slice(0, LIMITS.maxFiles)
     .sort(compareBytewise);
   if (

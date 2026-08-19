@@ -51,6 +51,8 @@ export interface EmitInput {
   tokenBudget: number;
   changedPaths: string[];
   gitRef?: string;
+  includePaths?: string[];
+  excludePaths?: string[];
 }
 
 export function buildCapsule(input: EmitInput): Capsule {
@@ -58,6 +60,8 @@ export function buildCapsule(input: EmitInput): Capsule {
     input;
   const changedPaths = input.changedPaths;
   const gitRef = input.gitRef;
+  const includePaths = input.includePaths;
+  const excludePaths = input.excludePaths;
 
   const packed = packBudget(
     candidates.map((c) => ({
@@ -120,6 +124,8 @@ export function buildCapsule(input: EmitInput): Capsule {
     tokenBudget,
     changedPaths,
     ...(gitRef !== undefined ? { gitRef } : {}),
+    ...(includePaths !== undefined ? { includePaths } : {}),
+    ...(excludePaths !== undefined ? { excludePaths } : {}),
   });
 
   const capsuleId = `ctx-${digestOf({ requestDigest, snapshotDigest: snapshot.snapshotDigest }).slice(0, 16)}`;

@@ -17,11 +17,18 @@ export async function analyzeWorkspace(
   workspace: string,
   denylist: readonly string[],
   gitRef?: string,
+  includePaths?: string[],
 ): Promise<Analysis> {
   const identity = resolveWorkspace(workspace);
   const commitSha =
     gitRef !== undefined ? resolveRef(identity.root, gitRef) : undefined;
-  const scan = await scanWorkspace(identity, denylist, LIMITS.maxFiles, commitSha);
+  const scan = await scanWorkspace(
+    identity,
+    denylist,
+    LIMITS.maxFiles,
+    commitSha,
+    includePaths,
+  );
   const { snapshot } = finalizeSnapshot(scan, identity, commitSha);
   return { identity, scan, snapshot };
 }

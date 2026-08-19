@@ -19,7 +19,11 @@ export async function pack(
   options: PackOptions = {},
 ): Promise<Capsule> {
   const normalized = normalize(request);
-  const denylist = buildDenylist(options.extraDenylist);
+  const extraDeny = [
+    ...(options.extraDenylist ?? []),
+    ...(normalized.excludePaths ?? []),
+  ];
+  const denylist = buildDenylist(extraDeny);
 
   // Drop changed paths that the policy would deny.
   const changedPaths = filterAllowedPaths(normalized.changedPaths, denylist);
@@ -28,6 +32,7 @@ export async function pack(
     normalized.workspace,
     denylist,
     normalized.gitRef,
+    normalized.includePaths,
   );
 
   const analysis = analyze(scan, identity.root, denylist, changedPaths);
@@ -43,7 +48,14 @@ export async function pack(
     await options.onAfterScan();
   }
 
-  await verifyUnchanged(identity, denylist, scan, normalized.gitRef, snapshot.head);
+  await verifyUnchanged(
+    identity,
+    denylist,
+    scan,
+    normalized.gitRef,
+    snapshot.head,
+    normalized.includePaths,
+  );
 
   return buildCapsule({
     identity,
@@ -56,5 +68,7 @@ export async function pack(
     tokenBudget: normalized.tokenBudget,
     changedPaths,
     gitRef: normalized.gitRef,
+    includePaths: normalized.includePaths,
+    excludePaths: normalized.excludePaths,
   });
 }

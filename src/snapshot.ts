@@ -10,7 +10,7 @@ import {
 } from "./git-workspace.js";
 import { digestOf, digestOfBytes } from "./hash.js";
 import type { FileFact } from "./model.js";
-import { isDenied } from "./security.js";
+import { isDenied, matchesInclude } from "./security.js";
 import { readSource } from "./source-reader.js";
 import type { ExtractionResult } from "./typescript-extractor.js";
 import { extractSymbols } from "./typescript-extractor.js";
@@ -59,9 +59,10 @@ export async function scanWorkspace(
   denylist: readonly string[],
   maxFiles: number,
   commitSha?: string,
+  includePaths?: readonly string[],
 ): Promise<ScanResult> {
   if (commitSha !== undefined) {
-    return scanFromRef(identity, denylist, maxFiles, commitSha);
+    return scanFromRef(identity, denylist, maxFiles, commitSha, includePaths);
   }
 
   const allFiles = listFiles(identity.root);
@@ -73,6 +74,9 @@ export async function scanWorkspace(
   for (const path of allFiles) {
     if (isDenied(path, denylist)) {
       skipped.push({ path, reason: "denylist" });
+      continue;
+    }
+    if (!matchesInclude(path, includePaths)) {
       continue;
     }
     eligible.push(path);
@@ -174,6 +178,7 @@ async function scanFromRef(
   denylist: readonly string[],
   maxFiles: number,
   commitSha: string,
+  includePaths?: readonly string[],
 ): Promise<ScanResult> {
   const allPaths = listTree(identity.root, commitSha);
 
@@ -182,6 +187,9 @@ async function scanFromRef(
   for (const path of allPaths) {
     if (isDenied(path, denylist)) {
       skipped.push({ path, reason: "denylist" });
+      continue;
+    }
+    if (!matchesInclude(path, includePaths)) {
       continue;
     }
     eligible.push(path);

@@ -110,3 +110,20 @@ export function redact(text: string): string {
   });
   return out;
 }
+
+/**
+ * Returns true if path matches any of the include prefixes (or if no includes).
+ * Prefix match: exact or starts with prefix + '/'
+ */
+export function matchesInclude(
+  path: string,
+  includePaths?: readonly string[],
+): boolean {
+  if (!includePaths || includePaths.length === 0) return true;
+  for (const inc of includePaths) {
+    if (path === inc || path.startsWith(`${inc}/`)) {
+      return true;
+    }
+  }
+  return false;
+}

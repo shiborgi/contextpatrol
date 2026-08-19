@@ -724,3 +724,91 @@ test("invalid gitRef produces REQUEST_INVALID with empty stdout", async () => {
     cleanup();
   }
 });
+
+test("includePaths restricts the scan to matching prefixes", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    // create infra subdir
+    mkdirSync(join(repo, "src", "infra"));
+    writeFileSync(
+      join(repo, "src", "infra", "config.ts"),
+      "export function getCfg() { return 42; }\n",
+    );
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "add infra", "--no-gpg-sign"], repo);
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "infra only",
+      focus: ["symbols"],
+      tokenBudget: 2000,
+      includePaths: ["src/infra/"],
+    });
+
+    const titles = capsule.evidence.map((e) => e.path || "");
+    const names = capsule.evidence.map((e) => e.title || "");
+    assert.ok(
+      names.some((n) => n.includes("getCfg")) ||
+        titles.some((p) => p?.includes("config")),
+    );
+    assert.ok(!titles.some((p) => p?.includes("auth.ts")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("omitting includePaths keeps whole tree", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "all",
+      focus: ["symbols"],
+      tokenBudget: 2000,
+    });
+    const titles = capsule.evidence.map((e) => e.path || "");
+    assert.ok(titles.some((p) => p?.includes("auth.ts")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("excludePaths adds to denylist and removes facts", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "no scripts",
+      focus: ["symbols"],
+      tokenBudget: 2000,
+      excludePaths: ["src"],
+    });
+    const titles = capsule.evidence.map((e) => e.path || "");
+    // src/auth.ts should be excluded
+    assert.ok(!titles.some((p) => p?.includes("auth.ts")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("invalid include/exclude path is REQUEST_INVALID", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    await assert.rejects(
+      pack({
+        protocolVersion: 1,
+        workspace: repo,
+        intent: "bad include",
+        focus: ["symbols"],
+        tokenBudget: 1000,
+        includePaths: ["../escape"],
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "REQUEST_INVALID",
+    );
+  } finally {
+    cleanup();
+  }
+});
