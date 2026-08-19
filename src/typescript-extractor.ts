@@ -40,6 +40,17 @@ export function isTestPath(path: string): boolean {
   return TEST_PATH_RE.test(path);
 }
 
+/** Entry shims and build scripts are exercised by the CLI/eval, not by unit
+ * tests; they are not test gaps. */
+export function isShimPath(path: string): boolean {
+  return (
+    path === "bin" ||
+    path.startsWith("bin/") ||
+    path === "scripts" ||
+    path.startsWith("scripts/")
+  );
+}
+
 export function extractSymbols(path: string, source: string): ExtractionResult {
   const isTs = /\.(ts|tsx|mts|cts)$/i.test(path);
   const isTsx = /\.(tsx|jsx)$/i.test(path);

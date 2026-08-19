@@ -488,3 +488,62 @@ test("self-repo pack no longer flags runCli as dead code", async () => {
     false,
   );
 });
+
+test("test-gaps exclude bin/ and scripts/ shims but keep untested src modules", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["review"],
+      tokenBudget: 4000,
+    });
+
+    const gaps = capsule.sections.review?.testGaps ?? [];
+    assert.equal(
+      gaps.some((p) => p.startsWith("bin/")),
+      false,
+    );
+    assert.equal(
+      gaps.some((p) => p.startsWith("scripts/")),
+      false,
+    );
+    // an untested src module still appears
+    assert.ok(gaps.some((p) => p === "src/unused.ts"));
+  } finally {
+    cleanup();
+  }
+});
+
+test("self-repo review testGaps exclude bin and scripts", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["review"],
+    tokenBudget: 4000,
+  });
+
+  const gaps = capsule.sections.review?.testGaps ?? [];
+  assert.equal(gaps.includes("bin/contextpatrol.js"), false);
+  assert.equal(
+    gaps.some((p) => p.startsWith("scripts/")),
+    false,
+  );
+});
+
+test("self-repo graph godSymbols[0] is not the lineOf helper", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 4000,
+  });
+
+  const first = capsule.sections.graph?.godSymbols[0];
+  if (first) {
+    assert.notEqual(first.qualifiedName, "src/typescript-extractor.ts#lineOf");
+  }
+});

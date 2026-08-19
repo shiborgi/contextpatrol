@@ -16,8 +16,16 @@ const DEFAULT_NOISE = new Set([
   "exports",
 ]);
 
-export function computeCentrality(graph: CodeGraph): CentralityResult {
+function filePathOf(qname: string): string {
+  return qname.includes("#") ? (qname.split("#")[0] ?? qname) : qname;
+}
+
+export function computeCentrality(
+  graph: CodeGraph,
+  exportedNames: ReadonlySet<string> = new Set(),
+): CentralityResult {
   const inDegree = new Map<string, number>();
+  const crossFileCalled = new Set<string>();
 
   // Count in-degree for symbol nodes via CALLS edges
   for (const edge of graph.edges) {
@@ -29,11 +37,23 @@ export function computeCentrality(graph: CodeGraph): CentralityResult {
       if (DEFAULT_NOISE.has(name)) {
         continue;
       }
+      if (
+        edge.from.startsWith("sym:") &&
+        filePathOf(edge.from.slice(4)) !== filePathOf(qname)
+      ) {
+        crossFileCalled.add(qname);
+      }
       inDegree.set(qname, (inDegree.get(qname) ?? 0) + 1);
     }
   }
 
+  // A god-symbol must be an exported symbol or one called from another file;
+  // a same-file helper with high in-degree is noise, not a hub.
   const godSymbols = [...inDegree.entries()]
+    .filter(
+      ([qualifiedName]) =>
+        exportedNames.has(qualifiedName) || crossFileCalled.has(qualifiedName),
+    )
     .map(([qualifiedName, score]) => ({ qualifiedName, score }))
     .sort(
       (a, b) => b.score - a.score || compareBytewise(a.qualifiedName, b.qualifiedName),

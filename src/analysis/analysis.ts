@@ -32,7 +32,12 @@ export function analyze(
   changedPaths: string[],
 ): Analysis {
   const graph = buildCodeGraph(scan.fileFacts, scan.eligiblePaths);
-  const { godSymbols, boundaryFiles } = computeCentrality(graph);
+  const exportedNames = new Set(
+    scan.fileFacts.flatMap((f) =>
+      f.symbols.filter((s) => s.exported).map((s) => s.qualifiedName),
+    ),
+  );
+  const { godSymbols, boundaryFiles } = computeCentrality(graph, exportedNames);
   const changedSymbols = mapDiff(root, scan.fileFacts, denylist, changedPaths);
   const history = mineHistory(root, denylist, HISTORY_WINDOW);
   const communities = detectCommunities(graph);

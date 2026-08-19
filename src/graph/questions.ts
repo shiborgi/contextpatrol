@@ -1,5 +1,6 @@
 import { compareBytewise } from "../hash.js";
 import type { FileFact } from "../model.js";
+import { isShimPath } from "../typescript-extractor.js";
 import type { CodeGraph } from "./code-graph.js";
 import type { Community } from "./communities.js";
 import type { DeadCodeEntry } from "./dead-code.js";
@@ -50,7 +51,7 @@ export function generateQuestions(signals: QuestionSignals): Question[] {
     }
   }
   const gapFile = signals.fileFacts.find(
-    (f) => f.symbols.length > 0 && !testedFiles.has(f.path),
+    (f) => f.symbols.length > 0 && !isShimPath(f.path) && !testedFiles.has(f.path),
   );
   if (gapFile) {
     questions.push({
@@ -72,13 +73,45 @@ export function generateQuestions(signals: QuestionSignals): Question[] {
   const largestCommunity = [...signals.communities].sort(
     (a, b) => b.memberCount - a.memberCount || compareBytewise(a.id, b.id),
   )[0];
-  const firstMember = largestCommunity?.members[0];
-  if (largestCommunity && firstMember) {
+  const hubMember = pickHubMember(signals.graph, largestCommunity);
+  if (largestCommunity && hubMember) {
     questions.push({
       text: `What is the role of community ${largestCommunity.id}?`,
-      nodeId: `sym:${firstMember}`,
+      nodeId: `sym:${hubMember}`,
     });
   }
 
   return questions;
+}
+
+/** The community member with the highest incoming CALLS count, ties broken
+ * bytewise; never a deterministic-arbitrary members[0]. */
+function pickHubMember(
+  graph: CodeGraph,
+  community: Community | undefined,
+): string | null {
+  if (!community) {
+    return null;
+  }
+  const inDegree = new Map<string, number>();
+  for (const edge of graph.edges) {
+    if (edge.kind === "CALLS" && edge.to.startsWith("sym:")) {
+      const qname = edge.to.slice(4);
+      inDegree.set(qname, (inDegree.get(qname) ?? 0) + 1);
+    }
+  }
+  let best: string | null = null;
+  let bestScore = -1;
+  for (const member of community.members) {
+    const score = inDegree.get(member) ?? 0;
+    if (
+      best === null ||
+      score > bestScore ||
+      (score === bestScore && compareBytewise(member, best) < 0)
+    ) {
+      best = member;
+      bestScore = score;
+    }
+  }
+  return best;
 }

@@ -5,6 +5,7 @@ import { compareBytewise } from "../hash.js";
 import type { SymbolFact } from "../model.js";
 import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
+import { isShimPath } from "../typescript-extractor.js";
 import type { Analysis } from "./analysis.js";
 import { scoreSymbolRisk } from "./risk.js";
 
@@ -145,7 +146,11 @@ function buildReviewSection(
   }
   const testGaps: string[] = [];
   for (const file of scan.fileFacts) {
-    if (file.symbols.length > 0 && !testedFiles.has(file.path)) {
+    if (
+      file.symbols.length > 0 &&
+      !isShimPath(file.path) &&
+      !testedFiles.has(file.path)
+    ) {
       testGaps.push(redact(file.path));
     }
   }

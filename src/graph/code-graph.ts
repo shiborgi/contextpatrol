@@ -39,6 +39,7 @@ interface BuildContext {
   symbolsMap: Map<string, SymbolFact>;
   importMap: Map<string, ImportFact[]>;
   resolvedImports: Map<string, string>; // "filePath::specifier" -> resolved path
+  externalImports: Map<string, Set<string>>; // filePath -> imported names that are external
 }
 
 function addEdge(
@@ -75,6 +76,7 @@ export function buildCodeGraph(
     symbolsMap: new Map(),
     importMap: new Map(),
     resolvedImports: new Map(),
+    externalImports: new Map(),
   };
 
   // --- Nodes & CONTAINS ---
@@ -99,7 +101,18 @@ export function buildCodeGraph(
   for (const file of fileFacts) {
     for (const imp of file.imports) {
       const resolved = resolveImport(imp.moduleSpecifier, file.path, eligiblePaths);
-      if (!resolved.external && resolved.path && ctx.nodes.has(fileId(resolved.path))) {
+      if (resolved.external) {
+        if (imp.importedName) {
+          let set = ctx.externalImports.get(file.path);
+          if (!set) {
+            set = new Set();
+            ctx.externalImports.set(file.path, set);
+          }
+          set.add(imp.importedName);
+        }
+        continue;
+      }
+      if (resolved.path && ctx.nodes.has(fileId(resolved.path))) {
         addEdge(
           ctx,
           "IMPORTS",
@@ -206,6 +219,17 @@ export function buildCodeGraph(
       }
 
       if (!resolved) {
+        // Skip the census for callees that are external imports (packages and
+        // node: built-ins): an unresolved library call is not a gap in our
+        // understanding of the repository.
+        const externalNames = ctx.externalImports.get(file.path);
+        const base =
+          recv === "property"
+            ? (call.calleeText.split(".")[0] ?? call.calleeText)
+            : call.calleeText;
+        if (externalNames?.has(base)) {
+          continue;
+        }
         ctx.census.set(callerId, (ctx.census.get(callerId) ?? 0) + 1);
       }
     }

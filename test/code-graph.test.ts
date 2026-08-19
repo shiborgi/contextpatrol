@@ -368,3 +368,93 @@ test("NodeNext .js imports produce IMPORTS and import-scoped CALLS edges", () =>
     ),
   );
 });
+
+test("external library callees are not counted in the census", () => {
+  const files: FileFact[] = [
+    {
+      path: "src/schema.ts",
+      language: "typescript",
+      size: 50,
+      lines: 3,
+      digest: "x1",
+      symbols: [
+        {
+          kind: "function",
+          name: "validate",
+          qualifiedName: "src/schema.ts#validate",
+          path: "src/schema.ts",
+          signature: "function validate()",
+          jsdoc: "",
+          source: "",
+          range: { startLine: 1, endLine: 3 },
+          exported: true,
+          confidence: 1.0,
+          isTest: false,
+          heritage: { extends: [], implements: [] },
+        },
+      ],
+      imports: [
+        {
+          kind: "named",
+          importedName: "z",
+          moduleSpecifier: "zod",
+          range: { startLine: 1, endLine: 1 },
+        },
+      ],
+      calls: [
+        {
+          callerQualifiedName: "src/schema.ts#validate",
+          calleeText: "z.string",
+          receiver: "property",
+          range: { startLine: 2, endLine: 2 },
+        },
+      ],
+      rationale: [],
+      routes: [],
+    },
+  ];
+  const g = buildCodeGraph(files, ["src/schema.ts"]);
+  assert.equal(g.unresolvedCallCensus.length, 0);
+});
+
+test("internal unresolved identifiers still increment the census", () => {
+  const files: FileFact[] = [
+    {
+      path: "src/a.ts",
+      language: "typescript",
+      size: 50,
+      lines: 2,
+      digest: "y1",
+      symbols: [
+        {
+          kind: "function",
+          name: "main",
+          qualifiedName: "src/a.ts#main",
+          path: "src/a.ts",
+          signature: "function main()",
+          jsdoc: "",
+          source: "",
+          range: { startLine: 1, endLine: 2 },
+          exported: true,
+          confidence: 1.0,
+          isTest: false,
+          heritage: { extends: [], implements: [] },
+        },
+      ],
+      imports: [],
+      calls: [
+        {
+          callerQualifiedName: "src/a.ts#main",
+          calleeText: "missingHelper",
+          receiver: "identifier",
+          range: { startLine: 2, endLine: 2 },
+        },
+      ],
+      rationale: [],
+      routes: [],
+    },
+  ];
+  const g = buildCodeGraph(files, ["src/a.ts"]);
+  assert.equal(g.unresolvedCallCensus.length, 1);
+  assert.equal(g.unresolvedCallCensus[0]?.count, 1);
+});

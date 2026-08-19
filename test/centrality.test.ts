@@ -11,7 +11,7 @@ const GRAPH: CodeGraph = {
     { id: "sym:src/auth.ts#AuthService", kind: "symbol" },
     { id: "sym:src/auth.ts#AuthService.rotate", kind: "symbol" },
     { id: "sym:src/auth.ts#helper", kind: "symbol" },
-    { id: "sym:src/auth.ts#constructor", kind: "symbol" }, // Noise node
+    { id: "sym:src/auth.ts#constructor", kind: "symbol" },
   ],
   edges: [
     {
@@ -31,7 +31,7 @@ const GRAPH: CodeGraph = {
     {
       kind: "CALLS",
       from: "sym:src/auth.ts#AuthService.rotate",
-      to: "sym:src/auth.ts#constructor", // Call to noise
+      to: "sym:src/auth.ts#constructor",
       confidence: 0.95,
       tier: "extracted",
     },
@@ -46,21 +46,49 @@ const GRAPH: CodeGraph = {
   unresolvedCallCensus: [],
 };
 
-test("computeCentrality computes in-degree over symbols and excludes noise", () => {
-  const { godSymbols, boundaryFiles } = computeCentrality(GRAPH);
+test("excludes non-exported same-file helpers from godSymbols", () => {
+  const { godSymbols } = computeCentrality(GRAPH, new Set());
+  assert.equal(
+    godSymbols.find((g) => g.qualifiedName === "src/auth.ts#helper"),
+    undefined,
+  );
+});
 
-  // 'helper' has in-degree 2 (from rotate and AuthService)
+test("includes exported symbols as god-symbols", () => {
+  const { godSymbols } = computeCentrality(GRAPH, new Set(["src/auth.ts#helper"]));
   const helper = godSymbols.find((g) => g.qualifiedName === "src/auth.ts#helper");
   assert.ok(helper);
   assert.equal(helper.score, 2);
+});
 
-  // 'constructor' is noise, must be excluded
-  const constructorNode = godSymbols.find(
-    (g) => g.qualifiedName === "src/auth.ts#constructor",
+test("includes cross-file-called symbols even when not exported", () => {
+  const graph: CodeGraph = {
+    ...GRAPH,
+    edges: [
+      ...GRAPH.edges,
+      {
+        kind: "CALLS",
+        from: "sym:test/auth.test.ts#testAuth",
+        to: "sym:src/auth.ts#helper",
+        confidence: 0.9,
+        tier: "extracted",
+      },
+    ],
+  };
+  const { godSymbols } = computeCentrality(graph, new Set());
+  const helper = godSymbols.find((g) => g.qualifiedName === "src/auth.ts#helper");
+  assert.ok(helper);
+});
+
+test("noise (constructor) is still excluded even when exported", () => {
+  const { godSymbols } = computeCentrality(GRAPH, new Set(["src/auth.ts#constructor"]));
+  assert.equal(
+    godSymbols.find((g) => g.qualifiedName === "src/auth.ts#constructor"),
+    undefined,
   );
-  assert.equal(constructorNode, undefined);
+});
 
-  // 'boundaryFiles' should find 'src/auth.ts' because it was imported from 'test/auth.test.ts'
-  // (different top-level dir: 'src' !== 'test')
+test("boundaryFiles still finds cross-dir imports", () => {
+  const { boundaryFiles } = computeCentrality(GRAPH);
   assert.deepEqual(boundaryFiles, ["src/auth.ts"]);
 });

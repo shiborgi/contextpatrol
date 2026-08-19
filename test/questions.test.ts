@@ -83,3 +83,51 @@ test("emits no fabricated questions when no signals exist", () => {
   });
   assert.deepEqual(questions, []);
 });
+
+test("community question cites the highest in-degree member, not members[0]", () => {
+  const graph: CodeGraph = {
+    nodes: [
+      { id: "sym:src/a.ts#Other", kind: "symbol" },
+      { id: "sym:src/b.ts#Hub", kind: "symbol" },
+    ],
+    edges: [
+      {
+        kind: "CALLS",
+        from: "sym:src/a.ts#Other",
+        to: "sym:src/b.ts#Hub",
+        confidence: 0.9,
+        tier: "extracted",
+      },
+      {
+        kind: "CALLS",
+        from: "sym:src/c.ts#C",
+        to: "sym:src/b.ts#Hub",
+        confidence: 0.9,
+        tier: "extracted",
+      },
+    ],
+    unresolvedCallCensus: [],
+  };
+  // members[0] is Other (bytewise), but Hub has in-degree 2
+  const communities: Community[] = [
+    {
+      id: "c-x",
+      members: ["src/a.ts#Other", "src/b.ts#Hub"],
+      memberCount: 2,
+      cohesion: 0,
+    },
+  ];
+
+  const questions = generateQuestions({
+    graph,
+    communities,
+    godSymbols: [],
+    surprises: [],
+    deadCode: [],
+    fileFacts: [],
+  });
+
+  const communityQuestion = questions.find((q) => q.text.includes("role of community"));
+  assert.ok(communityQuestion);
+  assert.equal(communityQuestion.nodeId, "sym:src/b.ts#Hub");
+});
