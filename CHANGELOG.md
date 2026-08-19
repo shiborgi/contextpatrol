@@ -23,6 +23,11 @@
   (exported or cross-file-called); external-library census skip; shims/scripts
   excluded from test gaps; community question cites its hub; richer
   architecture evidence and documented exit codes.
+- INIT-4 precision and visibility: dead-code skips type-level symbols
+  (`interface`, `type`, `enum`); unresolved-call census skips multiline
+  external callees; `godSymbols` capped at 20 (score-desc then bytewise) and
+  `unresolvedCalls` capped at 50 (count-desc then bytewise); communities with
+  more than 20 members and cohesion below 0.1 are split.
 
 ## 1.0.0
 
