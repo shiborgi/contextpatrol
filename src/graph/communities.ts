@@ -9,6 +9,8 @@ export interface Community {
 }
 
 const OVERSIZE_FRACTION = 0.25;
+const LOW_COHESION_THRESHOLD = 0.1;
+const LARGE_COMMUNITY_SIZE = 20;
 
 // Edge weights: CALLS is a stronger co-membership signal than IMPORTS.
 const CALLS_WEIGHT = 1.0;
@@ -138,14 +140,24 @@ function pruneComponent(
   adjacency: Adjacency,
   oversizeLimit: number,
 ): string[][] {
-  if (comp.length <= oversizeLimit) {
+  // Stop when the component satisfies both the legacy oversize rule and the
+  // low-cohesion large-community rule.
+  if (
+    comp.length <= oversizeLimit &&
+    (comp.length <= LARGE_COMMUNITY_SIZE ||
+      cohesionOf(comp, adjacency) >= LOW_COHESION_THRESHOLD)
+  ) {
     return [comp];
   }
 
   // Iteratively remove the weakest edge until the component splits into
   // multiple connected components, or until no internal edges remain.
   const current = comp;
-  while (current.length > oversizeLimit) {
+  while (
+    current.length > oversizeLimit ||
+    (current.length > LARGE_COMMUNITY_SIZE &&
+      cohesionOf(current, adjacency) < LOW_COHESION_THRESHOLD)
+  ) {
     const weakest = weakestEdge(current, adjacency);
     if (!weakest) {
       break;
@@ -193,14 +205,10 @@ function weakestEdge(
   return best ? { a: best.a, b: best.b } : null;
 }
 
-function toCommunity(members: string[], adjacency: Adjacency): Community {
-  const sorted = [...members].sort(compareBytewise);
-  const qualified = sorted.map(stripPrefix);
-  const id = `c-${sha256Hex(qualified.join("\n")).slice(0, 8)}`;
-
+function cohesionOf(members: string[], adjacency: Adjacency): number {
+  const set = new Set(members);
   let internal = 0;
-  const set = new Set(sorted);
-  for (const m of sorted) {
+  for (const m of members) {
     const neighbours = adjacency.get(m);
     if (!neighbours) continue;
     for (const n of neighbours.keys()) {
@@ -208,9 +216,17 @@ function toCommunity(members: string[], adjacency: Adjacency): Community {
     }
   }
   internal = internal / 2;
-  const n = sorted.length;
+  const n = members.length;
   const possible = n > 1 ? (n * (n - 1)) / 2 : 1;
-  const cohesion = possible > 0 ? internal / possible : 0;
+  return possible > 0 ? internal / possible : 0;
+}
+
+function toCommunity(members: string[], adjacency: Adjacency): Community {
+  const sorted = [...members].sort(compareBytewise);
+  const qualified = sorted.map(stripPrefix);
+  const id = `c-${sha256Hex(qualified.join("\n")).slice(0, 8)}`;
+
+  const cohesion = cohesionOf(sorted, adjacency);
 
   return {
     id,

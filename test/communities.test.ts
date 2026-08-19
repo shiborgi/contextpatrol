@@ -7,6 +7,21 @@ function sym(id: string): { id: string; kind: "symbol" } {
   return { id: `sym:${id}`, kind: "symbol" };
 }
 
+function pathGraph(n: number): CodeGraph {
+  const nodes = Array.from({ length: n }, (_, i) => sym(`src/a.ts#n${i}`));
+  const edges = [];
+  for (let i = 0; i < n - 1; i += 1) {
+    edges.push({
+      kind: "CALLS" as const,
+      from: `sym:src/a.ts#n${i}`,
+      to: `sym:src/a.ts#n${i + 1}`,
+      confidence: 0.95,
+      tier: "extracted" as const,
+    });
+  }
+  return { nodes, edges, unresolvedCallCensus: [] };
+}
+
 test("identical graphs produce identical communities", () => {
   const g: CodeGraph = {
     nodes: [sym("src/a.ts#A"), sym("src/b.ts#B")],
@@ -127,4 +142,24 @@ test("empty and edgeless graphs produce no communities", () => {
     unresolvedCallCensus: [],
   };
   assert.deepEqual(detectCommunities(edgeless), []);
+});
+
+test("low-cohesion communities larger than 20 are split", () => {
+  // A path of 21 symbols has cohesion 1/21 ≈ 0.0476, so it must be split.
+  const g = pathGraph(21);
+  const communities = detectCommunities(g);
+  for (const c of communities) {
+    assert.equal(
+      c.memberCount > 20 && c.cohesion < 0.1,
+      false,
+      `community ${c.id} has ${c.memberCount} members and cohesion ${c.cohesion}`,
+    );
+  }
+});
+
+test("21-node sparse community splitting is deterministic", () => {
+  const g = pathGraph(21);
+  const first = detectCommunities(g);
+  const second = detectCommunities(g);
+  assert.deepEqual(first, second);
 });

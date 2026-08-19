@@ -576,6 +576,25 @@ test("self-repo graph godSymbols[0] is not the lineOf helper", async () => {
   }
 });
 
+test("self-repo graph communities are not large and low-cohesion", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 4000,
+  });
+
+  const communities = capsule.sections.graph?.communities ?? [];
+  for (const c of communities) {
+    assert.equal(
+      c.memberCount > 20 && c.cohesion < 0.1,
+      false,
+      `community ${c.id} has ${c.memberCount} members and cohesion ${c.cohesion}`,
+    );
+  }
+});
+
 test("architecture evidence lists god symbols and boundary files when present", async () => {
   const { repo, cleanup } = makeInsightRepo();
   try {
