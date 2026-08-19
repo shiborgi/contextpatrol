@@ -17,6 +17,12 @@
   code with epistemic honesty, surprising connections (scored) and
   template-generated suggested questions — all as optional `sections.graph`
   fields, omitted when empty.
+- Graph honesty and budget truth: NodeNext `.js` import resolution onto
+  TypeScript sources; `estimatedTokens` counts emitted sections; `source:`
+  evidence ids; bin-to-source entry reachability; god-symbol noise filter
+  (exported or cross-file-called); external-library census skip; shims/scripts
+  excluded from test gaps; community question cites its hub; richer
+  architecture evidence and documented exit codes.
 
 ## 1.0.0
 

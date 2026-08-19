@@ -547,3 +547,46 @@ test("self-repo graph godSymbols[0] is not the lineOf helper", async () => {
     assert.notEqual(first.qualifiedName, "src/typescript-extractor.ts#lineOf");
   }
 });
+
+test("architecture evidence lists god symbols and boundary files when present", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["architecture"],
+      tokenBudget: 4000,
+    });
+
+    const arch = capsule.evidence.find((e) => e.kind === "architecture");
+    assert.ok(arch);
+    assert.ok(
+      arch.text.includes("God symbols:") ||
+        arch.text.includes("Communities:") ||
+        arch.text.includes("Boundary files:"),
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("architecture evidence is deterministic", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const request: PackRequest = {
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["architecture"],
+      tokenBudget: 4000,
+    };
+    const a = await pack(request);
+    const b = await pack(request);
+    const textA = a.evidence.find((e) => e.kind === "architecture")?.text;
+    const textB = b.evidence.find((e) => e.kind === "architecture")?.text;
+    assert.equal(textA, textB);
+  } finally {
+    cleanup();
+  }
+});

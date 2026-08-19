@@ -98,6 +98,13 @@ ids).
 - detects source change during the operation (`SOURCE_CHANGED`);
 - stdout carries only the result; stderr carries only a JSON error.
 
+### Exit codes
+
+- `0` — success.
+- `2` — request or usage validation: `REQUEST_INVALID`, `USAGE`,
+  `REQUEST_READ_FAILED`, `REQUEST_TOO_LARGE`.
+- `1` — runtime: `WORKSPACE_INVALID`, `SOURCE_CHANGED`, `INTERNAL`.
+
 ## Companion
 
 [CodePatrol](https://github.com/shiborgi/codepatrol) is an independent,

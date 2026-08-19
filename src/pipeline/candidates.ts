@@ -19,6 +19,7 @@ function symbolId(symbol: SymbolFact, kind: "sym" | "source"): string {
 
 function buildArchitectureEvidence(
   fileFacts: { path: string; language: string; symbols: SymbolFact[] }[],
+  analysis: Analysis,
 ): Evidence {
   const byLanguage = new Map<string, number>();
   const byDir = new Map<string, number>();
@@ -44,11 +45,19 @@ function buildArchitectureEvidence(
     .map(([dir, count]) => `${dir}: ${count}`)
     .join(", ");
 
+  const godNames = analysis.godSymbols.slice(0, 5).map((g) => g.qualifiedName);
+  const boundaryNames = analysis.boundaryFiles.slice(0, 5);
+
   const text = [
     `Files: ${fileFacts.length} (${languages || "none"})`,
     `Symbols: ${symbolCount}`,
     `Directories: ${dirs || "none"}`,
     entryPoints.length > 0 ? `Entry points: ${entryPoints.join(", ")}` : "",
+    godNames.length > 0 ? `God symbols: ${godNames.join(", ")}` : "",
+    analysis.communities.length > 0
+      ? `Communities: ${analysis.communities.length}`
+      : "",
+    boundaryNames.length > 0 ? `Boundary files: ${boundaryNames.join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -122,7 +131,7 @@ export function buildCandidates(
   const candidates: Candidate[] = [];
   if (focus.includes("architecture")) {
     candidates.push({
-      evidence: buildArchitectureEvidence(scan.fileFacts),
+      evidence: buildArchitectureEvidence(scan.fileFacts, analysis),
       clipable: false,
     });
   }
