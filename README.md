@@ -67,6 +67,15 @@ symbols, per-symbol risk with factors, impact by depth, test gaps). A
 `coverage` section (unresolved call census, skips, languages, history window)
 is always present.
 
+Beyond the counts, `sections.graph` carries optional insight fields, each
+omitted when it has nothing to say: `communities` (deterministic clustering,
+cohesion and top files per cluster), `routes` (extracted HTTP routes with
+method, path and handler), `deadCode` (exported symbols with no incoming calls,
+suppressed entirely when the graph has zero `CALLS` edges), `surprises`
+(ranked surprising connections with a deterministic score and reasons) and
+`questions` (template-generated review questions referencing real graph node
+ids).
+
 ```json
 {
   "protocolVersion": 1,

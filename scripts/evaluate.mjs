@@ -46,6 +46,76 @@ writeFileSync(
 );
 writeFileSync(join(repo, ".env"), "SECRET=super-secret-value\n");
 
+// Insight fixture: a hub called by two callers (hub-periphery surprises), one
+// Express route, one unused export, and a denied secrets/leak.ts with a route.
+mkdirSync(join(repo, "secrets"));
+writeFileSync(
+  join(srcDir, "hub.ts"),
+  [
+    "export function hub(): number {",
+    "  return peripheral();",
+    "}",
+    "",
+    "export function peripheral(): number {",
+    "  return 1;",
+    "}",
+    "",
+  ].join("\n"),
+);
+writeFileSync(
+  join(srcDir, "a.ts"),
+  [
+    'import { hub } from "./hub";',
+    "",
+    "export function callerA(): number {",
+    "  return hub();",
+    "}",
+    "",
+  ].join("\n"),
+);
+writeFileSync(
+  join(srcDir, "b.ts"),
+  [
+    'import { hub } from "./hub";',
+    "",
+    "export function callerB(): number {",
+    "  return hub();",
+    "}",
+    "",
+  ].join("\n"),
+);
+writeFileSync(
+  join(srcDir, "routes.ts"),
+  [
+    "export function registerRoutes(app: any): void {",
+    "  app.get('/health', checkHealth);",
+    "}",
+    "",
+    "function checkHealth() { return 'ok'; }",
+    "",
+  ].join("\n"),
+);
+writeFileSync(
+  join(srcDir, "unused.ts"),
+  [
+    "export function unusedHelper(): string {",
+    "  return 'never called';",
+    "}",
+    "",
+  ].join("\n"),
+);
+writeFileSync(
+  join(repo, "secrets", "leak.ts"),
+  [
+    "export function leakHandler() { return 'ghp_secret'; }",
+    "",
+    "export function register(app: any): void {",
+    "  app.get('/secret', leakHandler);",
+    "}",
+    "",
+  ].join("\n"),
+);
+
 git(["init", "-b", "main"], repo);
 git(["config", "user.email", "eval@example.com"], repo);
 git(["config", "user.name", "eval"], repo);
@@ -72,6 +142,16 @@ const reviewRequest = {
 const reviewRequestFile = join(repo, "review-request.json");
 writeFileSync(reviewRequestFile, JSON.stringify(reviewRequest));
 
+const insightRequest = {
+  protocolVersion: 1,
+  workspace: repo,
+  intent: "map the graph",
+  focus: ["graph"],
+  tokenBudget: 4000,
+};
+const insightRequestFile = join(repo, "insight-request.json");
+writeFileSync(insightRequestFile, JSON.stringify(insightRequest));
+
 function run() {
   const out = execFileSync("node", [bin, "pack", "--request", requestFile], {
     encoding: "utf8",
@@ -81,6 +161,13 @@ function run() {
 
 function runReview() {
   const out = execFileSync("node", [bin, "pack", "--request", reviewRequestFile], {
+    encoding: "utf8",
+  });
+  return JSON.parse(out);
+}
+
+function runInsight() {
+  const out = execFileSync("node", [bin, "pack", "--request", insightRequestFile], {
     encoding: "utf8",
   });
   return JSON.parse(out);
@@ -177,6 +264,59 @@ check("review secret never leaked", () => {
   }
   if (text.includes(".env")) {
     throw new Error(".env path present in review capsule");
+  }
+});
+
+const insightCapsule = runInsight();
+
+check("insight fields populated", () => {
+  const graph = insightCapsule.sections?.graph;
+  if (!graph) {
+    throw new Error("graph section missing");
+  }
+  if (!Array.isArray(graph.communities) || graph.communities.length === 0) {
+    throw new Error("communities empty");
+  }
+  if (!Array.isArray(graph.routes) || !graph.routes.some((r) => r.path === "/health")) {
+    throw new Error("route /health missing");
+  }
+  if (
+    !Array.isArray(graph.deadCode) ||
+    !graph.deadCode.some((d) => d.qualifiedName.includes("unusedHelper"))
+  ) {
+    throw new Error("unusedHelper missing from deadCode");
+  }
+  if (!Array.isArray(graph.surprises) || graph.surprises.length === 0) {
+    throw new Error("surprises empty");
+  }
+  for (const s of graph.surprises) {
+    if (
+      !s.from.includes("#") ||
+      !s.to.includes("#") ||
+      typeof s.score !== "number" ||
+      !Array.isArray(s.reasons)
+    ) {
+      throw new Error("malformed surprise entry");
+    }
+  }
+});
+
+check("insight denylist respected", () => {
+  const graph = insightCapsule.sections?.graph;
+  if (!graph) {
+    throw new Error("graph section missing");
+  }
+  const routes = graph.routes ?? [];
+  if (routes.some((r) => r.path === "/secret")) {
+    throw new Error("denied route /secret present");
+  }
+  const deadCode = graph.deadCode ?? [];
+  if (deadCode.some((d) => d.qualifiedName.includes("leakHandler"))) {
+    throw new Error("denied leakHandler present in deadCode");
+  }
+  const text = JSON.stringify(insightCapsule);
+  if (text.includes("ghp_secret") || text.includes("secrets/leak.ts")) {
+    throw new Error("denied secret present in insight capsule");
   }
 });
 

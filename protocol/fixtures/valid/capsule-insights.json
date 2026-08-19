@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 1,
+  "capsuleId": "ctx-example",
+  "capsuleDigest": "sha256:example",
+  "requestDigest": "sha256:example",
+  "intent": "map the graph insight layer",
+  "focus": ["graph"],
+  "snapshot": {
+    "projectId": "sha256:project",
+    "workspaceId": "sha256:workspace",
+    "head": "0123456789abcdef0123456789abcdef01234567",
+    "dirtyDigest": "sha256:dirty",
+    "sourceDigest": "sha256:source",
+    "snapshotDigest": "sha256:snapshot",
+    "extractorVersion": "typescript-ast-v2",
+    "policyDigest": "sha256:policy"
+  },
+  "budget": {
+    "requestedTokens": 2400,
+    "estimatedTokens": 120,
+    "estimator": "utf8-bytes/3-conservative-v1"
+  },
+  "changedPaths": [],
+  "evidence": [],
+  "sections": {
+    "graph": {
+      "fileCount": 7,
+      "symbolCount": 7,
+      "edgeCount": 12,
+      "godSymbols": [{ "qualifiedName": "src/hub.ts#hub", "score": 2 }],
+      "boundaryFiles": [],
+      "communities": [
+        {
+          "id": "c-fef2c55e",
+          "memberCount": 2,
+          "topFiles": ["src/hub.ts"],
+          "cohesion": 1
+        }
+      ],
+      "routes": [
+        {
+          "id": "route:src/routes.ts#GET /health",
+          "method": "GET",
+          "path": "/health",
+          "handler": "checkHealth"
+        }
+      ],
+      "deadCode": [
+        { "qualifiedName": "src/a.ts#callerA", "confidence": 0.6 },
+        { "qualifiedName": "src/unused.ts#unusedHelper", "confidence": 0.6 }
+      ],
+      "surprises": [
+        {
+          "from": "src/a.ts#callerA",
+          "to": "src/hub.ts#hub",
+          "score": 2,
+          "reasons": ["hub-periphery"]
+        }
+      ],
+      "questions": [
+        {
+          "text": "What depends on src/hub.ts#hub?",
+          "nodeId": "sym:src/hub.ts#hub"
+        },
+        {
+          "text": "Why does src/a.ts#callerA connect to src/hub.ts#hub?",
+          "nodeId": "sym:src/a.ts#callerA"
+        }
+      ]
+    },
+    "coverage": {
+      "unresolvedCalls": [],
+      "skipped": [],
+      "truncated": false,
+      "languagesSeen": ["typescript"],
+      "historyWindow": 2000
+    }
+  },
+  "warnings": []
+}

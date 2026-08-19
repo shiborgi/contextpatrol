@@ -12,6 +12,11 @@
 - Capsule sections: `graph`, `review` and `coverage`; focus values extended
   with `graph` and `review`.
 - `EXTRACTOR_VERSION` bumped to `typescript-ast-v2`.
+- Deterministic graph insight layer: communities (connected components +
+  weakest-edge prune), HTTP route facts (Express/Fastify + decorators), dead
+  code with epistemic honesty, surprising connections (scored) and
+  template-generated suggested questions — all as optional `sections.graph`
+  fields, omitted when empty.
 
 ## 1.0.0
 

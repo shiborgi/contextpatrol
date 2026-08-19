@@ -51,6 +51,91 @@ function makeRepo(): { repo: string; cleanup: () => void } {
   return { repo, cleanup: () => rmSync(repo, { recursive: true, force: true }) };
 }
 
+// A repo shaped so every INIT-2 insight field is non-empty: a hub called by
+// two callers (hub-periphery surprises), one Express route, one unused export,
+// and a denied secrets/leak.ts that also declares a route and an export.
+function makeInsightRepo(): { repo: string; cleanup: () => void } {
+  const repo = mkdtempSync(join(tmpdir(), "contextpatrol-insight-"));
+  mkdirSync(join(repo, "src"));
+  mkdirSync(join(repo, "secrets"));
+  writeFileSync(
+    join(repo, "package.json"),
+    JSON.stringify({ name: "insight-fixture", version: "1.0.0" }, null, 2),
+  );
+  writeFileSync(
+    join(repo, "src", "hub.ts"),
+    [
+      "export function hub(): number {",
+      "  return peripheral();",
+      "}",
+      "",
+      "export function peripheral(): number {",
+      "  return 1;",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(repo, "src", "a.ts"),
+    [
+      'import { hub } from "./hub";',
+      "",
+      "export function callerA(): number {",
+      "  return hub();",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(repo, "src", "b.ts"),
+    [
+      'import { hub } from "./hub";',
+      "",
+      "export function callerB(): number {",
+      "  return hub();",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(repo, "src", "routes.ts"),
+    [
+      "export function registerRoutes(app: any): void {",
+      "  app.get('/health', checkHealth);",
+      "}",
+      "",
+      "function checkHealth() { return 'ok'; }",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(repo, "src", "unused.ts"),
+    [
+      "export function unusedHelper(): string {",
+      "  return 'never called';",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(repo, "secrets", "leak.ts"),
+    [
+      "export function leakHandler() { return 'ghp_secret'; }",
+      "",
+      "export function register(app: any): void {",
+      "  app.get('/secret', leakHandler);",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  git(["init", "-b", "main"], repo);
+  git(["config", "user.email", "test@example.com"], repo);
+  git(["config", "user.name", "test"], repo);
+  git(["add", "-A"], repo);
+  git(["commit", "-m", "insight fixture", "--no-gpg-sign"], repo);
+  return { repo, cleanup: () => rmSync(repo, { recursive: true, force: true }) };
+}
+
 test("pack recovers symbols, respects budget, redacts secrets", async () => {
   const { repo, cleanup } = makeRepo();
   try {
@@ -209,6 +294,87 @@ test("SOURCE_CHANGED fires on concurrent modification", async () => {
       (err: unknown) => err instanceof PatrolError && err.code === "SOURCE_CHANGED",
     );
     assert.equal(mutated, true);
+  } finally {
+    cleanup();
+  }
+});
+
+test("graph focus populates every insight field and honors the denylist", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["graph"],
+      tokenBudget: 4000,
+    });
+
+    const graph = capsule.sections.graph;
+    assert.ok(graph);
+
+    // communities: non-empty
+    assert.ok(graph.communities);
+    assert.ok(graph.communities.length > 0);
+    for (const c of graph.communities) {
+      assert.ok(typeof c.id === "string" && c.id.length > 0);
+      assert.ok(Array.isArray(c.topFiles));
+    }
+
+    // routes: includes the allowed handler, excludes the denied path
+    assert.ok(graph.routes);
+    const paths = graph.routes.map((r) => r.path);
+    assert.ok(paths.includes("/health"));
+    assert.equal(paths.includes("/secret"), false);
+
+    // deadCode: lists the unused export, not the denied handler
+    assert.ok(graph.deadCode);
+    const deadNames = graph.deadCode.map((d) => d.qualifiedName);
+    assert.ok(deadNames.some((n) => n.includes("unusedHelper")));
+    assert.equal(
+      deadNames.some((n) => n.includes("leakHandler")),
+      false,
+    );
+
+    // surprises: non-empty with real qualified names
+    assert.ok(graph.surprises);
+    assert.ok(graph.surprises.length > 0);
+    for (const s of graph.surprises) {
+      assert.ok(s.from.includes("#"));
+      assert.ok(s.to.includes("#"));
+      assert.ok(typeof s.score === "number" && s.score > 0);
+      assert.ok(Array.isArray(s.reasons) && s.reasons.length > 0);
+    }
+
+    // questions: real node ids
+    if (graph.questions) {
+      for (const q of graph.questions) {
+        assert.ok(q.nodeId.startsWith("sym:") || q.nodeId.startsWith("file:"));
+      }
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("insight fields are omitted when their signals are absent", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "auth",
+      focus: ["graph"],
+      tokenBudget: 4000,
+    });
+
+    const graph = capsule.sections.graph;
+    assert.ok(graph);
+    // makeRepo has no routes, no CALLS, no communities -> fields omitted
+    assert.equal(graph.routes, undefined);
+    assert.equal(graph.deadCode, undefined);
+    assert.equal(graph.surprises, undefined);
+    assert.equal(graph.communities, undefined);
   } finally {
     cleanup();
   }
