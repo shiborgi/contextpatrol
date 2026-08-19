@@ -8,11 +8,37 @@ import {
   PROTOCOL_VERSION,
   SCHEMA_VERSION,
 } from "../constants.js";
-import type { Capsule, Evidence, Snapshot } from "../contracts.js";
+import type { Capsule, Evidence, Sections, Snapshot } from "../contracts.js";
 import type { WorkspaceIdentity } from "../git-workspace.js";
-import { digestOf } from "../hash.js";
+import { canonicalJson, digestOf } from "../hash.js";
 import type { ScanResult } from "../snapshot.js";
 import type { Candidate } from "./candidates.js";
+
+// Optional graph insight fields, dropped in this fixed order when the emitted
+// sections would exceed the remaining budget. Required graph counts and the
+// coverage section are never dropped.
+const OPTIONAL_INSIGHT_DROP_ORDER = [
+  "questions",
+  "surprises",
+  "deadCode",
+  "routes",
+  "communities",
+] as const;
+
+export function fitOptionalInsights(sections: Sections, remaining: number): Sections {
+  let result = sections;
+  while (result.graph && estimateTokens(canonicalJson(result)) > remaining) {
+    const graph = result.graph;
+    const key = OPTIONAL_INSIGHT_DROP_ORDER.find((k) => k in graph);
+    if (!key) {
+      break;
+    }
+    const nextGraph = { ...graph };
+    delete nextGraph[key];
+    result = { ...result, graph: nextGraph };
+  }
+  return result;
+}
 
 export interface EmitInput {
   identity: WorkspaceIdentity;
@@ -94,10 +120,15 @@ export function buildCapsule(input: EmitInput): Capsule {
   });
 
   const capsuleId = `ctx-${digestOf({ requestDigest, snapshotDigest: snapshot.snapshotDigest }).slice(0, 16)}`;
-  const estimatedTokens = evidence.reduce((sum, ev) => sum + ev.estimatedTokens, 0);
 
   const allSymbols = scan.fileFacts.flatMap((f) => f.symbols);
-  const sections = buildSections(focus, scan, analysis, allSymbols);
+  const rawSections = buildSections(focus, scan, analysis, allSymbols);
+
+  const evidenceTokens = evidence.reduce((sum, ev) => sum + ev.estimatedTokens, 0);
+  const remaining = tokenBudget - evidenceTokens;
+  const sections = fitOptionalInsights(rawSections, remaining);
+  const sectionTokens = estimateTokens(canonicalJson(sections));
+  const estimatedTokens = evidenceTokens + sectionTokens;
 
   const body: Omit<Capsule, "capsuleDigest"> = {
     schemaVersion: SCHEMA_VERSION,

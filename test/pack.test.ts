@@ -4,8 +4,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { estimateTokens } from "../src/budget.js";
 import type { PackRequest } from "../src/contracts.js";
 import { PatrolError } from "../src/errors.js";
+import { canonicalJson } from "../src/hash.js";
 import { pack } from "../src/pack.js";
 
 function git(args: string[], cwd: string): string {
@@ -399,4 +401,50 @@ test("self-repo pack no longer flags analyze as dead code", async () => {
     dead.some((d) => d.qualifiedName === "src/analysis/analysis.ts#analyze"),
     false,
   );
+});
+
+test("graph pack counts sections in estimatedTokens", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["graph"],
+      tokenBudget: 4000,
+    });
+
+    const expected =
+      capsule.evidence.reduce((sum, e) => sum + estimateTokens(e.text), 0) +
+      estimateTokens(canonicalJson(capsule.sections));
+
+    assert.ok(capsule.budget.estimatedTokens > 0);
+    assert.equal(capsule.budget.estimatedTokens, expected);
+  } finally {
+    cleanup();
+  }
+});
+
+test("small budget drops optional insights but keeps required graph and coverage", async () => {
+  const { repo, cleanup } = makeInsightRepo();
+  try {
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map the graph",
+      focus: ["graph"],
+      tokenBudget: 256,
+    });
+
+    const graph = capsule.sections.graph;
+    assert.ok(graph);
+    assert.ok(graph.fileCount >= 0);
+    assert.ok(graph.symbolCount >= 0);
+    assert.ok(graph.edgeCount >= 0);
+    assert.ok(Array.isArray(graph.godSymbols));
+    assert.ok(Array.isArray(graph.boundaryFiles));
+    assert.ok(capsule.sections.coverage);
+  } finally {
+    cleanup();
+  }
 });
