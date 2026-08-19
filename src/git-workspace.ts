@@ -121,6 +121,47 @@ function commonDirOf(root: string): string {
   return root;
 }
 
+/**
+ * Resolve gitRef to a full commit SHA. Throws REQUEST_INVALID when unresolvable.
+ */
+export function resolveRef(root: string, gitRef: string): string {
+  const out = runGitNullable(["rev-parse", "--verify", `${gitRef}^{commit}`], root);
+  if (out === null) {
+    throw new PatrolError("REQUEST_INVALID", `invalid gitRef: ${gitRef}`);
+  }
+  return out.toString("utf8").trim();
+}
+
+/**
+ * List tree entries for a commit via `git ls-tree -r --name-only -z`.
+ * Returns relative POSIX paths sorted bytewise.
+ */
+export function listTree(root: string, commit: string): string[] {
+  const out = runGit(["ls-tree", "-r", "--name-only", "-z", commit], root);
+  return out
+    .toString("utf8")
+    .split("\0")
+    .filter((p) => p.length > 0)
+    .map((p) => p.replace(/\\/g, "/"))
+    .sort();
+}
+
+/**
+ * Read a blob from a commit via `git cat-file blob <commit>:<path>`.
+ * Returns the raw buffer (may contain binary content).
+ */
+export function readBlob(root: string, commit: string, path: string): Buffer {
+  return runGit(["cat-file", "blob", `${commit}:${path}`], root);
+}
+
+/**
+ * Return the byte size of a blob via `git cat-file -s`.
+ */
+export function blobSize(root: string, commit: string, path: string): number {
+  const out = runGit(["cat-file", "-s", `${commit}:${path}`], root);
+  return parseInt(out.toString("utf8").trim(), 10);
+}
+
 /** Returns relative POSIX paths of tracked + untracked (non-ignored) files. */
 export function listFiles(root: string): string[] {
   const out = runGit(

@@ -1,7 +1,14 @@
-import { EXTRACTOR_VERSION, POLICY_VERSION } from "./constants.js";
+import { EXTRACTOR_VERSION, LIMITS, POLICY_VERSION } from "./constants.js";
 import type { Snapshot } from "./contracts.js";
-import { dirtyEntries, listFiles, type WorkspaceIdentity } from "./git-workspace.js";
-import { digestOf } from "./hash.js";
+import {
+  blobSize,
+  dirtyEntries,
+  listFiles,
+  listTree,
+  readBlob,
+  type WorkspaceIdentity,
+} from "./git-workspace.js";
+import { digestOf, digestOfBytes } from "./hash.js";
 import type { FileFact } from "./model.js";
 import { isDenied } from "./security.js";
 import { readSource } from "./source-reader.js";
@@ -51,7 +58,12 @@ export async function scanWorkspace(
   identity: WorkspaceIdentity,
   denylist: readonly string[],
   maxFiles: number,
+  commitSha?: string,
 ): Promise<ScanResult> {
+  if (commitSha !== undefined) {
+    return scanFromRef(identity, denylist, maxFiles, commitSha);
+  }
+
   const allFiles = listFiles(identity.root);
   const rawDirty = dirtyEntries(identity.root);
   const dirtySet = new Set(rawDirty.map((entry) => entry.path));
@@ -131,9 +143,11 @@ export async function scanWorkspace(
 export function finalizeSnapshot(
   result: ScanResult,
   identity: WorkspaceIdentity,
+  commitSha?: string,
 ): { snapshot: Snapshot } {
+  const head = commitSha ?? identity.head;
   const sourceDigest = digestOf({
-    head: identity.head,
+    head,
     dirtyDigest: result.dirtyDigest,
     fileManifest: result.fileManifest,
   });
@@ -145,7 +159,7 @@ export function finalizeSnapshot(
   const snapshot: Snapshot = {
     projectId: identity.projectId,
     workspaceId: identity.workspaceId,
-    head: identity.head,
+    head,
     dirtyDigest: result.dirtyDigest,
     sourceDigest,
     snapshotDigest,
@@ -153,4 +167,93 @@ export function finalizeSnapshot(
     policyDigest: result.policyDigest,
   };
   return { snapshot };
+}
+
+async function scanFromRef(
+  identity: WorkspaceIdentity,
+  denylist: readonly string[],
+  maxFiles: number,
+  commitSha: string,
+): Promise<ScanResult> {
+  const allPaths = listTree(identity.root, commitSha);
+
+  const eligible: string[] = [];
+  const skipped: Array<{ path: string; reason: string }> = [];
+  for (const path of allPaths) {
+    if (isDenied(path, denylist)) {
+      skipped.push({ path, reason: "denylist" });
+      continue;
+    }
+    eligible.push(path);
+  }
+
+  const fileFacts: FileFact[] = [];
+  const fileManifest: Array<{ path: string; digest: string }> = [];
+
+  const scoped = eligible.slice(0, maxFiles);
+
+  for (const path of scoped) {
+    let size: number;
+    try {
+      size = blobSize(identity.root, commitSha, path);
+    } catch {
+      skipped.push({ path, reason: "read-error" });
+      continue;
+    }
+    if (size > LIMITS.maxFileBytes) {
+      skipped.push({ path, reason: "too-large" });
+      continue;
+    }
+
+    let buf: Buffer;
+    try {
+      buf = readBlob(identity.root, commitSha, path);
+    } catch {
+      skipped.push({ path, reason: "read-error" });
+      continue;
+    }
+    if (buf.includes(0)) {
+      skipped.push({ path, reason: "binary" });
+      continue;
+    }
+
+    const content = buf.toString("utf8");
+    const digest = digestOfBytes(buf);
+
+    fileManifest.push({ path, digest });
+
+    const language = languageOf(path);
+    const isTsOrJs = language === "typescript" || language === "javascript";
+    const extraction: ExtractionResult = isTsOrJs
+      ? extractSymbols(path, content)
+      : { symbols: [], imports: [], calls: [], rationale: [], routes: [] };
+
+    fileFacts.push({
+      path,
+      language,
+      size,
+      lines: content.split("\n").length,
+      digest,
+      symbols: extraction.symbols,
+      imports: extraction.imports,
+      calls: extraction.calls,
+      rationale: extraction.rationale,
+      routes: extraction.routes,
+    });
+  }
+
+  const dirtyDigest = digestOf([]);
+
+  return {
+    fileFacts,
+    fileManifest,
+    eligiblePaths: scoped,
+    truncated: eligible.length > maxFiles,
+    dirtyDigest,
+    policyDigest: policyDigestFor(denylist),
+    snapshotDigest: "",
+    skipped,
+    dirtyEntries: [],
+    dirtyFiles: [],
+  };
 }

@@ -10,6 +10,7 @@ export interface NormalizedRequest {
   focus: Focus[];
   tokenBudget: number;
   changedPaths: string[];
+  gitRef?: string;
 }
 
 export function normalize(request: PackRequest): NormalizedRequest {
@@ -33,11 +34,22 @@ export function normalize(request: PackRequest): NormalizedRequest {
     }
   }
   changedPaths.sort(compareBytewise);
+
+  let gitRef: string | undefined;
+  if (request.gitRef !== undefined) {
+    const trimmed = request.gitRef.trim();
+    if (trimmed === "") {
+      throw new PatrolError("REQUEST_INVALID", "gitRef is empty");
+    }
+    gitRef = trimmed;
+  }
+
   return {
     workspace: request.workspace,
     intent,
     focus,
     tokenBudget: request.tokenBudget,
     changedPaths,
+    gitRef,
   };
 }

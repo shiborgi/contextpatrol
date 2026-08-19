@@ -4,6 +4,7 @@ import {
   dirtyEntries,
   headOf,
   listFiles,
+  resolveRef,
   type WorkspaceIdentity,
 } from "../git-workspace.js";
 import { compareBytewise, digestOf } from "../hash.js";
@@ -15,7 +16,20 @@ export async function verifyUnchanged(
   identity: WorkspaceIdentity,
   denylist: readonly string[],
   scan: ScanResult,
+  gitRef?: string,
+  expectedHead?: string,
 ): Promise<void> {
+  if (gitRef !== undefined) {
+    const current = resolveRef(identity.root, gitRef);
+    if (expectedHead && current !== expectedHead) {
+      throw new PatrolError(
+        "SOURCE_CHANGED",
+        `gitRef ${gitRef} moved during the operation`,
+      );
+    }
+    return;
+  }
+
   if (headOf(identity.root) !== identity.head) {
     throw new PatrolError(
       "SOURCE_CHANGED",

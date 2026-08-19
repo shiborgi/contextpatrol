@@ -27,6 +27,7 @@ export async function pack(
   const { identity, scan, snapshot } = await analyzeWorkspace(
     normalized.workspace,
     denylist,
+    normalized.gitRef,
   );
 
   const analysis = analyze(scan, identity.root, denylist, changedPaths);
@@ -42,7 +43,7 @@ export async function pack(
     await options.onAfterScan();
   }
 
-  await verifyUnchanged(identity, denylist, scan);
+  await verifyUnchanged(identity, denylist, scan, normalized.gitRef, snapshot.head);
 
   return buildCapsule({
     identity,
@@ -54,5 +55,6 @@ export async function pack(
     intent: normalized.intent,
     tokenBudget: normalized.tokenBudget,
     changedPaths,
+    gitRef: normalized.gitRef,
   });
 }

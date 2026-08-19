@@ -637,3 +637,90 @@ test("architecture evidence is deterministic", async () => {
     cleanup();
   }
 });
+
+test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    const sha1 = git(["rev-parse", "HEAD"], repo).trim();
+
+    const v2 = [
+      "export class AuthService {",
+      "  rotate(secret: string): string {",
+      "    return secret + '-v2';",
+      "  }",
+      "}",
+      "",
+      "export function tokenize(input: string): string[] {",
+      "  return input.split(' ');",
+      "}",
+      "",
+    ].join("\n");
+    writeFileSync(join(repo, "src", "auth.ts"), v2);
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "v2", "--no-gpg-sign"], repo);
+    const sha2 = git(["rev-parse", "HEAD"], repo).trim();
+
+    writeFileSync(join(repo, "src", "auth.ts"), `dirty\n${v2}`);
+
+    const cap1 = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "first version via sha",
+      focus: ["symbols", "source"],
+      tokenBudget: 2000,
+      gitRef: sha1,
+    });
+    assert.equal(cap1.snapshot.head, sha1);
+    const texts1 = cap1.evidence.map((e) => e.text).join("\n");
+    assert.ok(texts1.includes("rotate(secret"));
+    assert.ok(!texts1.includes("-v2"));
+
+    const cap2 = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "second version via sha",
+      focus: ["symbols", "source"],
+      tokenBudget: 2000,
+      gitRef: sha2,
+    });
+    assert.equal(cap2.snapshot.head, sha2);
+    const texts2 = cap2.evidence.map((e) => e.text).join("\n");
+    assert.ok(texts2.includes("-v2"));
+
+    const currentHead = git(["rev-parse", "HEAD"], repo).trim();
+    assert.equal(currentHead, sha2);
+    const status = git(["status", "--porcelain=v1"], repo);
+    assert.ok(status.includes("src/auth.ts"));
+
+    const capHead = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "via HEAD ref",
+      focus: ["symbols"],
+      tokenBudget: 1000,
+      gitRef: "HEAD",
+    });
+    assert.equal(capHead.snapshot.head, sha2);
+  } finally {
+    cleanup();
+  }
+});
+
+test("invalid gitRef produces REQUEST_INVALID with empty stdout", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    await assert.rejects(
+      pack({
+        protocolVersion: 1,
+        workspace: repo,
+        intent: "bad ref",
+        focus: ["symbols"],
+        tokenBudget: 1000,
+        gitRef: "not-a-ref-at-all",
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "REQUEST_INVALID",
+    );
+  } finally {
+    cleanup();
+  }
+});

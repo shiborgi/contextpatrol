@@ -50,12 +50,14 @@ export interface EmitInput {
   intent: string;
   tokenBudget: number;
   changedPaths: string[];
+  gitRef?: string;
 }
 
 export function buildCapsule(input: EmitInput): Capsule {
   const { identity, snapshot, scan, candidates, analysis, focus, intent, tokenBudget } =
     input;
   const changedPaths = input.changedPaths;
+  const gitRef = input.gitRef;
 
   const packed = packBudget(
     candidates.map((c) => ({
@@ -117,6 +119,7 @@ export function buildCapsule(input: EmitInput): Capsule {
     focus,
     tokenBudget,
     changedPaths,
+    ...(gitRef !== undefined ? { gitRef } : {}),
   });
 
   const capsuleId = `ctx-${digestOf({ requestDigest, snapshotDigest: snapshot.snapshotDigest }).slice(0, 16)}`;

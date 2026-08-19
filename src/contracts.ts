@@ -37,6 +37,7 @@ export const packRequestSchema = z
     focus: focusSchema.array().min(1).max(FOCUS_VALUES.length),
     tokenBudget: z.number().int().min(LIMITS.minBudget).max(LIMITS.maxBudget),
     changedPaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
+    gitRef: z.string().min(1).optional(),
   })
   .strict();
 

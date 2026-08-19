@@ -20,6 +20,7 @@
       "type": "array",
       "maxItems": 200,
       "items": { "type": "string", "minLength": 1 }
-    }
+    },
+    "gitRef": { "type": "string", "minLength": 1 }
   }
 }
