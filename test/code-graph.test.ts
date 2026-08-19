@@ -417,6 +417,54 @@ test("external library callees are not counted in the census", () => {
   assert.equal(g.unresolvedCallCensus.length, 0);
 });
 
+test("multiline external callees are not counted in the census", () => {
+  const files: FileFact[] = [
+    {
+      path: "src/schema.ts",
+      language: "typescript",
+      size: 50,
+      lines: 5,
+      digest: "x2",
+      symbols: [
+        {
+          kind: "function",
+          name: "validate",
+          qualifiedName: "src/schema.ts#validate",
+          path: "src/schema.ts",
+          signature: "function validate()",
+          jsdoc: "",
+          source: "",
+          range: { startLine: 1, endLine: 5 },
+          exported: true,
+          confidence: 1.0,
+          isTest: false,
+          heritage: { extends: [], implements: [] },
+        },
+      ],
+      imports: [
+        {
+          kind: "named",
+          importedName: "z",
+          moduleSpecifier: "zod",
+          range: { startLine: 1, endLine: 1 },
+        },
+      ],
+      calls: [
+        {
+          callerQualifiedName: "src/schema.ts#validate",
+          calleeText: "z\n  .object",
+          receiver: "property",
+          range: { startLine: 2, endLine: 4 },
+        },
+      ],
+      rationale: [],
+      routes: [],
+    },
+  ];
+  const g = buildCodeGraph(files, ["src/schema.ts"]);
+  assert.equal(g.unresolvedCallCensus.length, 0);
+});
+
 test("internal unresolved identifiers still increment the census", () => {
   const files: FileFact[] = [
     {

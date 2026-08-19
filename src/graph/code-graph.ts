@@ -223,10 +223,11 @@ export function buildCodeGraph(
         // node: built-ins): an unresolved library call is not a gap in our
         // understanding of the repository.
         const externalNames = ctx.externalImports.get(file.path);
-        const base =
+        const base = (
           recv === "property"
             ? (call.calleeText.split(".")[0] ?? call.calleeText)
-            : call.calleeText;
+            : call.calleeText
+        ).trim();
         if (externalNames?.has(base)) {
           continue;
         }

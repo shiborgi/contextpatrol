@@ -489,6 +489,34 @@ test("self-repo pack no longer flags runCli as dead code", async () => {
   );
 });
 
+test("self-repo graph deadCode excludes type-level symbols", async () => {
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: process.cwd(),
+    intent: "map the graph",
+    focus: ["graph"],
+    tokenBudget: 8000,
+  });
+
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  const deadNames = (graph.deadCode ?? []).map((d) => d.qualifiedName);
+  // deadCode is populated so the kind filter is actually exercised
+  assert.ok(deadNames.length > 0);
+  const typeLevelQNames = [
+    "src/contracts.ts#Capsule",
+    "src/model.ts#SymbolKind",
+    "src/constants.ts#Focus",
+  ];
+  for (const qname of typeLevelQNames) {
+    assert.equal(
+      deadNames.includes(qname),
+      false,
+      `${qname} should not be listed as dead code`,
+    );
+  }
+});
+
 test("test-gaps exclude bin/ and scripts/ shims but keep untested src modules", async () => {
   const { repo, cleanup } = makeInsightRepo();
   try {

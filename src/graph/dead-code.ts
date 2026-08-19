@@ -36,11 +36,16 @@ export function detectDeadCode(
     }
   }
 
+  // Type-level declarations can never receive a CALLS edge; reporting them as
+  // dead would be a false positive.
+  const TYPE_ONLY_KINDS = new Set(["interface", "type", "enum"]);
+
   const result: DeadCodeEntry[] = [];
   for (const file of fileFacts) {
     for (const sym of file.symbols) {
       if (!sym.exported) continue;
       if (sym.isTest) continue;
+      if (TYPE_ONLY_KINDS.has(sym.kind)) continue;
       if (isEntryPath(sym.path)) continue;
       if (called.has(`sym:${sym.qualifiedName}`)) continue;
       result.push({ qualifiedName: sym.qualifiedName, confidence: 0.6 });
