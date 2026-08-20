@@ -68,13 +68,17 @@ symbols, per-symbol risk with factors, impact by depth, test gaps). A
 is always present.
 
 Beyond the counts, `sections.graph` carries optional insight fields, each
-omitted when it has nothing to say: `communities` (deterministic clustering,
-cohesion and top files per cluster), `routes` (extracted HTTP routes with
-method, path and handler), `deadCode` (exported symbols with no incoming calls,
-suppressed entirely when the graph has zero `CALLS` edges), `surprises`
-(ranked surprising connections with a deterministic score and reasons) and
-`questions` (template-generated review questions referencing real graph node
-ids).
+omitted when it has nothing to say: `outlines` (capped file/symbol overview,
+no source bodies), `referenceCensus` (symbols ranked by incoming `CALLS` count),
+`communities` (deterministic clustering, cohesion and top files per cluster),
+`routes` (extracted HTTP routes with method, path and handler), `deadCode`
+(exported symbols with no incoming calls, suppressed entirely when the graph
+has zero `CALLS` edges), `surprises` (ranked surprising connections with a
+deterministic score and reasons) and `questions` (template-generated review
+questions referencing real graph node ids).
+
+These optional graph fields are dropped in priority order under tight token
+budgets (outlines and referenceCensus first).
 
 ```json
 {
@@ -122,6 +126,25 @@ Example using `gitRef` + `baseRef` for impact review:
 ```
 
 The pack request protocol strictly rejects `stage`, `operation`, and `runId` (lifecycle vocabulary belongs to the caller/profile, not the pack).
+
+## Project overlay
+
+A `contextpatrol.project.json` file (read-only) may exist at the git root of
+the analyzed repository. It is never written by `pack`.
+
+```json
+{
+  "includePaths": ["src/"],
+  "excludePaths": ["src/generated/"]
+}
+```
+
+- Supplies default `includePaths` / `excludePaths` when the request omits them.
+- Request values always win on conflict.
+- Missing file is a silent no-op.
+- Malformed JSON, unknown keys, or invalid paths → `REQUEST_INVALID`.
+
+`pack` never writes to the analyzed repository.
 
 ## Guarantees
 
