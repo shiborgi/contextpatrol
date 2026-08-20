@@ -150,3 +150,46 @@ test("stepwise drop order: outlines -> referenceCensus -> routes -> deadCode -> 
   assert.ok(result.graph?.godSymbols);
   assert.ok(result.coverage);
 });
+
+function manyOutlines(count: number): NonNullable<Sections["graph"]> {
+  const outlines = [];
+  for (let i = 0; i < count; i++) {
+    outlines.push({
+      path: `src/f${i}.ts`,
+      symbols: [
+        { qualifiedName: `src/f${i}.ts#F${i}`, kind: "function", exported: true },
+      ],
+    });
+  }
+  return {
+    fileCount: count,
+    symbolCount: count,
+    edgeCount: count,
+    godSymbols: [{ qualifiedName: "src/f0.ts#F0", score: 1 }],
+    boundaryFiles: [],
+    outlines,
+  };
+}
+
+test("WORK-7.1.1 shrinks outlines to at most 10 when only a subset fits", () => {
+  const sections: Sections = { graph: manyOutlines(20), coverage };
+  const graph = sections.graph!;
+  const outlines = graph.outlines!;
+  // remaining budget that fits 10 outlines but not 20
+  const ten = { ...sections, graph: { ...graph, outlines: outlines.slice(0, 10) } };
+  const remaining = estimateTokens(canonicalJson(ten));
+  const result = fitOptionalInsights(sections, remaining);
+  assert.ok(result.graph?.outlines, "outlines should be present");
+  assert.ok(result.graph.outlines.length <= 10, `got ${result.graph.outlines.length}`);
+});
+
+test("WORK-7.1.1 drops outlines entirely when even 5 do not fit", () => {
+  const sections: Sections = { graph: manyOutlines(20), coverage };
+  const graph = sections.graph!;
+  const outlines = graph.outlines!;
+  const five = { ...sections, graph: { ...graph, outlines: outlines.slice(0, 5) } };
+  const tiny = estimateTokens(canonicalJson(five)) - 1;
+  const result = fitOptionalInsights(sections, tiny);
+  assert.equal(result.graph?.outlines, undefined);
+  assert.equal(result.graph?.referenceCensus, undefined);
+});

@@ -651,6 +651,67 @@ test("architecture evidence is deterministic", async () => {
   }
 });
 
+test("WORK-7.1.2 architecture keeps Scripts when includePaths excludes package.json", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    // makeRepo commits a package.json at root; overwrite it with scripts
+    writeFileSync(
+      join(repo, "package.json"),
+      JSON.stringify(
+        {
+          name: "fixture",
+          version: "1.0.0",
+          scripts: { build: "tsc", test: "node --test", "cli:check": "node bin.js" },
+        },
+        null,
+        2,
+      ),
+    );
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "add scripts", "--no-gpg-sign"], repo);
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map with scripts",
+      focus: ["architecture"],
+      tokenBudget: 4000,
+      includePaths: ["src/"],
+    });
+
+    const arch = capsule.evidence.find((e) => e.kind === "architecture");
+    assert.ok(arch, "expected architecture evidence");
+    assert.ok(arch.text.includes("Scripts:"), `expected Scripts: in\n${arch.text}`);
+  } finally {
+    cleanup();
+  }
+});
+
+test("WORK-7.1.2 architecture omits Scripts when root package.json is absent", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    // makeRepo commits a root package.json; remove it and commit again
+    rmSync(join(repo, "package.json"));
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "remove package.json", "--no-gpg-sign"], repo);
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "map without package.json",
+      focus: ["architecture"],
+      tokenBudget: 4000,
+      includePaths: ["src/"],
+    });
+
+    const arch = capsule.evidence.find((e) => e.kind === "architecture");
+    assert.ok(arch);
+    assert.ok(!arch.text.includes("Scripts:"), `unexpected Scripts: in\n${arch.text}`);
+  } finally {
+    cleanup();
+  }
+});
+
 test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
   const { repo, cleanup } = makeRepo();
   try {
@@ -945,6 +1006,9 @@ test("overlay includePaths supplies default when request omits it", async () => 
         titles.some((p) => p?.includes("config")),
     );
     assert.ok(!titles.some((p) => p?.includes("auth.ts")));
+    // WORK-7.1.3: capsule echoes the effective includePaths from the overlay
+    // (canonicalized, trailing slash stripped)
+    assert.deepEqual(capsule.includePaths, ["src/infra"]);
   } finally {
     cleanup();
   }
@@ -977,6 +1041,8 @@ test("request includePaths overrides overlay", async () => {
 
     const titles = capsule.evidence.map((e) => e.path || "");
     assert.ok(titles.some((p) => p?.includes("auth.ts")));
+    // WORK-7.1.3: request includePaths wins over overlay in the echo too
+    assert.deepEqual(capsule.includePaths, ["src"]);
   } finally {
     cleanup();
   }

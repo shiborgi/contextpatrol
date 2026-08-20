@@ -16,7 +16,8 @@ import type { Candidate } from "./candidates.js";
 
 // Optional graph insight fields, dropped in this fixed order when the emitted
 // sections would exceed the remaining budget (outlines first; questions last).
-// Required graph counts and the coverage section are never dropped.
+// Required graph counts and the coverage section are never dropped. Later INIT-7
+// waves add layers/tour/dirImports after questions.
 const OPTIONAL_INSIGHT_DROP_ORDER = [
   "outlines",
   "referenceCensus",
@@ -27,10 +28,27 @@ const OPTIONAL_INSIGHT_DROP_ORDER = [
   "questions",
 ] as const;
 
+// WORK-7.1.1: before dropping outlines entirely, try shrinking the array so
+// leftover budget still yields a useful subset. Ranking is set at build time
+// (score/bytes desc), so a leading slice stays deterministic.
+const OUTLINE_SHRINK_CAPS = [10, 5] as const;
+
 export function fitOptionalInsights(sections: Sections, remaining: number): Sections {
   let result = sections;
   while (result.graph && estimateTokens(canonicalJson(result)) > remaining) {
     const graph = result.graph;
+    const outlines = graph.outlines;
+    const outlinesLen = outlines?.length ?? 0;
+    if (outlinesLen > 0) {
+      const cap = OUTLINE_SHRINK_CAPS.find((c) => outlinesLen > c);
+      if (cap !== undefined) {
+        result = {
+          ...result,
+          graph: { ...graph, outlines: outlines?.slice(0, cap) },
+        };
+        continue;
+      }
+    }
     const key = OPTIONAL_INSIGHT_DROP_ORDER.find((k) => k in graph);
     if (!key) {
       break;
@@ -158,6 +176,8 @@ export function buildCapsule(input: EmitInput): Capsule {
       estimator: ESTIMATOR,
     },
     changedPaths,
+    ...(includePaths !== undefined ? { includePaths } : {}),
+    ...(excludePaths !== undefined ? { excludePaths } : {}),
     evidence,
     sections,
     omitted,

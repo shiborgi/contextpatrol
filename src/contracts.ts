@@ -248,6 +248,8 @@ export const capsuleSchema = z
       })
       .strict(),
     changedPaths: z.array(z.string()),
+    includePaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
+    excludePaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
     evidence: evidenceSchema.array(),
     sections: sectionsSchema,
     omitted: z

@@ -55,6 +55,30 @@ export function policyDigestFor(denylist: readonly string[]): string {
   });
 }
 
+// WORK-7.1.2: harvest scripts from a parsed package.json, bytewise-sorted and
+// capped. Shared so both the included-file path and the git-root fallback stay
+// consistent.
+function scriptNamesFrom(content: string): string[] {
+  try {
+    const pkg = JSON.parse(content) as Record<string, unknown>;
+    if (
+      pkg &&
+      typeof pkg === "object" &&
+      pkg.scripts &&
+      typeof pkg.scripts === "object"
+    ) {
+      const scripts = pkg.scripts as Record<string, unknown>;
+      return Object.keys(scripts)
+        .filter((k) => typeof scripts[k] === "string")
+        .sort(compareBytewise)
+        .slice(0, 5);
+    }
+  } catch {
+    // ignore invalid package.json
+  }
+  return [];
+}
+
 export async function scanWorkspace(
   identity: WorkspaceIdentity,
   denylist: readonly string[],
@@ -125,28 +149,21 @@ export async function scanWorkspace(
     });
 
     if (path === "package.json" && language === "json") {
-      try {
-        const pkg = JSON.parse(read.content);
-        if (
-          pkg &&
-          typeof pkg === "object" &&
-          pkg.scripts &&
-          typeof pkg.scripts === "object"
-        ) {
-          const names = Object.keys(pkg.scripts)
-            .filter((k: string) => typeof pkg.scripts[k] === "string")
-            .sort(compareBytewise)
-            .slice(0, 5);
-          scriptNames = names;
-        }
-      } catch {
-        // ignore invalid package.json
-      }
+      scriptNames = scriptNamesFrom(read.content);
     }
 
     if (dirtySet.has(path)) {
       dirtyManifest.push({ path, digest });
       dirtyFiles.push({ path, digest });
+    }
+  }
+
+  // WORK-7.1.2: if the scanned tree did not yield scripts (e.g. package.json is
+  // outside includePaths), fall back to reading the git-root package.json.
+  if (scriptNames.length === 0) {
+    const rootRead = await readSource(`${identity.root}/package.json`);
+    if (!rootRead.skipped) {
+      scriptNames = scriptNamesFrom(rootRead.content);
     }
   }
 
@@ -274,23 +291,18 @@ async function scanFromRef(
     });
 
     if (path === "package.json" && language === "json") {
-      try {
-        const pkg = JSON.parse(content);
-        if (
-          pkg &&
-          typeof pkg === "object" &&
-          pkg.scripts &&
-          typeof pkg.scripts === "object"
-        ) {
-          const names = Object.keys(pkg.scripts)
-            .filter((k: string) => typeof pkg.scripts[k] === "string")
-            .sort(compareBytewise)
-            .slice(0, 5);
-          scriptNames = names;
-        }
-      } catch {
-        // ignore invalid package.json
-      }
+      scriptNames = scriptNamesFrom(content);
+    }
+  }
+
+  // WORK-7.1.2: fall back to the git-root package.json at the ref when the
+  // scanned subtree did not include it.
+  if (scriptNames.length === 0) {
+    try {
+      const rootBuf = readBlob(identity.root, commitSha, "package.json");
+      scriptNames = scriptNamesFrom(rootBuf.toString("utf8"));
+    } catch {
+      // missing or unreadable root package.json; no-op
     }
   }
 

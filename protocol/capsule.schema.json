@@ -65,6 +65,8 @@
       }
     },
     "changedPaths": { "type": "array", "items": { "type": "string" } },
+    "includePaths": { "type": "array", "items": { "type": "string" } },
+    "excludePaths": { "type": "array", "items": { "type": "string" } },
     "evidence": {
       "type": "array",
       "items": {
