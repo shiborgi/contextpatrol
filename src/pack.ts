@@ -1,11 +1,12 @@
 import { analyze } from "./analysis/analysis.js";
 import type { Capsule, PackRequest } from "./contracts.js";
-import { resolveRef, runGit } from "./git-workspace.js";
+import { resolveRef, resolveWorkspace, runGit } from "./git-workspace.js";
 import { compareBytewise } from "./hash.js";
 import { analyzeWorkspace } from "./pipeline/analyze.js";
 import { buildCandidates } from "./pipeline/candidates.js";
 import { buildCapsule } from "./pipeline/emit.js";
 import { normalize } from "./pipeline/normalize.js";
+import { loadProjectOverlay } from "./pipeline/overlay.js";
 import { buildDenylist, filterAllowedPaths } from "./pipeline/policy.js";
 import { verifyUnchanged } from "./pipeline/verify.js";
 import { canonicalizePath } from "./security.js";
@@ -22,17 +23,36 @@ export async function pack(
   options: PackOptions = {},
 ): Promise<Capsule> {
   const normalized = normalize(request);
-  const extraDeny = [
-    ...(options.extraDenylist ?? []),
-    ...(normalized.excludePaths ?? []),
-  ];
+
+  // WAVE-6.4: load read-only project overlay and merge (request wins)
+  const identityForOverlay = resolveWorkspace(normalized.workspace);
+  const overlay = loadProjectOverlay(identityForOverlay.root);
+
+  let finalIncludePaths = normalized.includePaths;
+  if (!finalIncludePaths || finalIncludePaths.length === 0) {
+    if (overlay?.includePaths && overlay.includePaths.length > 0) {
+      finalIncludePaths = overlay.includePaths;
+    }
+  }
+
+  let finalExcludePaths = normalized.excludePaths;
+  if (!finalExcludePaths || finalExcludePaths.length === 0) {
+    if (overlay?.excludePaths && overlay.excludePaths.length > 0) {
+      finalExcludePaths = overlay.excludePaths;
+    }
+  }
+
+  const extraDeny = [...(options.extraDenylist ?? []), ...(finalExcludePaths ?? [])];
   const denylist = buildDenylist(extraDeny);
+
+  const effectiveIncludePaths = finalIncludePaths;
+  const effectiveExcludePaths = finalExcludePaths;
 
   const { identity, scan, snapshot } = await analyzeWorkspace(
     normalized.workspace,
     denylist,
     normalized.gitRef,
-    normalized.includePaths,
+    effectiveIncludePaths,
   );
 
   // baseRef handling (WAVE-5.3):
@@ -97,7 +117,7 @@ export async function pack(
     scan,
     normalized.gitRef,
     snapshot.head,
-    normalized.includePaths,
+    effectiveIncludePaths,
   );
 
   return buildCapsule({
@@ -112,7 +132,7 @@ export async function pack(
     changedPaths,
     gitRef: normalized.gitRef,
     baseRef: normalized.baseRef,
-    includePaths: normalized.includePaths,
-    excludePaths: normalized.excludePaths,
+    includePaths: effectiveIncludePaths,
+    excludePaths: effectiveExcludePaths,
   });
 }

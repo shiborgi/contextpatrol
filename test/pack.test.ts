@@ -913,3 +913,94 @@ test("invalid include/exclude path is REQUEST_INVALID", async () => {
     cleanup();
   }
 });
+
+test("overlay includePaths supplies default when request omits it", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    mkdirSync(join(repo, "src", "infra"));
+    writeFileSync(
+      join(repo, "src", "infra", "config.ts"),
+      "export function getCfg() { return 42; }\n",
+    );
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "add infra", "--no-gpg-sign"], repo);
+
+    writeFileSync(
+      join(repo, "contextpatrol.project.json"),
+      JSON.stringify({ includePaths: ["src/infra/"] }, null, 2),
+    );
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "overlay default",
+      focus: ["symbols"],
+      tokenBudget: 2000,
+    });
+
+    const titles = capsule.evidence.map((e) => e.path || "");
+    const names = capsule.evidence.map((e) => e.title || "");
+    assert.ok(
+      names.some((n) => n.includes("getCfg")) ||
+        titles.some((p) => p?.includes("config")),
+    );
+    assert.ok(!titles.some((p) => p?.includes("auth.ts")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("request includePaths overrides overlay", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    mkdirSync(join(repo, "src", "infra"));
+    writeFileSync(
+      join(repo, "src", "infra", "config.ts"),
+      "export function getCfg() { return 42; }\n",
+    );
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "add infra", "--no-gpg-sign"], repo);
+
+    writeFileSync(
+      join(repo, "contextpatrol.project.json"),
+      JSON.stringify({ includePaths: ["src/infra/"] }, null, 2),
+    );
+
+    const capsule = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "request wins",
+      focus: ["symbols"],
+      tokenBudget: 2000,
+      includePaths: ["src"],
+    });
+
+    const titles = capsule.evidence.map((e) => e.path || "");
+    assert.ok(titles.some((p) => p?.includes("auth.ts")));
+  } finally {
+    cleanup();
+  }
+});
+
+test("invalid overlay key is REQUEST_INVALID", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    writeFileSync(
+      join(repo, "contextpatrol.project.json"),
+      JSON.stringify({ foo: "bar" }, null, 2),
+    );
+
+    await assert.rejects(
+      pack({
+        protocolVersion: 1,
+        workspace: repo,
+        intent: "bad overlay",
+        focus: ["symbols"],
+        tokenBudget: 1000,
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "REQUEST_INVALID",
+    );
+  } finally {
+    cleanup();
+  }
+});
