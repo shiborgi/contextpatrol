@@ -17,7 +17,7 @@ import type { Candidate } from "./candidates.js";
 // Optional graph insight fields, dropped in this fixed order when the emitted
 // sections would exceed the remaining budget (outlines first; questions last).
 // Required graph counts and the coverage section are never dropped. Later INIT-7
-// waves add tour/dirImports after layers.
+// waves add dirImports after tour.
 const OPTIONAL_INSIGHT_DROP_ORDER = [
   "outlines",
   "referenceCensus",
@@ -27,6 +27,7 @@ const OPTIONAL_INSIGHT_DROP_ORDER = [
   "communities",
   "questions",
   "layers",
+  "tour",
 ] as const;
 
 // WORK-7.1.1: before dropping outlines entirely, try shrinking the array so

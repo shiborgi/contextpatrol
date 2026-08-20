@@ -235,6 +235,18 @@
                   "nodeIds": { "type": "array", "items": { "type": "string" } }
                 }
               }
+            },
+            "tour": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["order", "nodeId"],
+                "properties": {
+                  "order": { "type": "integer", "exclusiveMinimum": 0 },
+                  "nodeId": { "type": "string" }
+                }
+              }
             }
           }
         },

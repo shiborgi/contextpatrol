@@ -760,6 +760,44 @@ test("WORK-7.2.2 architecture+graph focus lists Layers in architecture text", as
   assert.match(arch.text, /layer:[a-z-]+/);
 });
 
+test("WORK-7.3.1 self-repo architecture pack lists an entry point", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "entry points",
+    focus: ["architecture"],
+    tokenBudget: 12000,
+  });
+  const arch = capsule.evidence.find((e) => e.kind === "architecture");
+  assert.ok(arch, "expected architecture evidence");
+  assert.ok(
+    arch.text.includes("bin/contextpatrol.js") || arch.text.includes("src/cli.ts"),
+    `expected an entry point in:\n${arch.text}`,
+  );
+});
+
+test("WORK-7.3.2 self-repo graph pack emits a tour", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "tour of self-repo",
+    focus: ["graph"],
+    tokenBudget: 16000,
+  });
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  assert.ok(graph.tour, "expected tour in a graph pack");
+  const tour = graph.tour;
+  assert.ok(tour.length >= 5 && tour.length <= 12, `bad tour length ${tour.length}`);
+  for (let i = 0; i < tour.length; i++) {
+    const step = tour[i]!;
+    assert.equal(step.order, i + 1);
+    assert.ok(step.nodeId.startsWith("file:") || step.nodeId.startsWith("sym:"));
+  }
+});
+
 test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
   const { repo, cleanup } = makeRepo();
   try {

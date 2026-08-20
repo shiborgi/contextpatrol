@@ -7,8 +7,10 @@ import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
 import { isShimPath } from "../typescript-extractor.js";
 import type { Analysis } from "./analysis.js";
+import { rankEntryPoints } from "./entries.js";
 import { assignLayers } from "./layers.js";
 import { scoreSymbolRisk } from "./risk.js";
+import { buildTour } from "./tour.js";
 
 type GraphSection = z.infer<typeof graphSectionSchema>;
 
@@ -159,6 +161,15 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
   const layers = assignLayers(scan.fileFacts.map((f) => f.path));
   if (layers.length > 0) {
     graphSection.layers = layers;
+  }
+
+  // WORK-7.3.2: read-order tour from the top scored entry.
+  const entry = rankEntryPoints(scan.fileFacts.map((f) => f.path))[0];
+  if (entry !== undefined) {
+    const tour = buildTour(analysis.graph, entry);
+    if (tour.length > 0) {
+      graphSection.tour = tour;
+    }
   }
 
   return graphSection;

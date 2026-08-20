@@ -27,6 +27,8 @@ function graphSection() {
       { from: "src/a.ts#A", to: "src/b.ts#B", score: 2, reasons: ["cross-community"] },
     ],
     questions: [{ text: "What depends on A?", nodeId: "sym:src/a.ts#A" }],
+    layers: [{ id: "layer:test", name: "Test", nodeIds: ["file:src/a.ts"] }],
+    tour: [{ order: 1, nodeId: "file:src/a.ts" }],
   };
 }
 
@@ -146,6 +148,22 @@ test("stepwise drop order: outlines -> referenceCensus -> routes -> deadCode -> 
   delete noQuestions.graph!.questions;
   result = fitOptionalInsights(result, estimateTokens(canonicalJson(noQuestions)));
   assert.equal(result.graph?.questions, undefined);
+  assert.ok(result.graph?.fileCount);
+  assert.ok(result.graph?.godSymbols);
+  assert.ok(result.coverage);
+
+  // After dropping layers (7.2/7.3 fields drop next)
+  const noLayers = { ...result, graph: { ...result.graph! } };
+  delete noLayers.graph!.layers;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noLayers)));
+  assert.equal(result.graph?.layers, undefined);
+  assert.ok(result.graph?.tour);
+
+  // tour drops last before only required fields remain
+  const noTour = { ...result, graph: { ...result.graph! } };
+  delete noTour.graph!.tour;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noTour)));
+  assert.equal(result.graph?.tour, undefined);
   assert.ok(result.graph?.fileCount);
   assert.ok(result.graph?.godSymbols);
   assert.ok(result.coverage);

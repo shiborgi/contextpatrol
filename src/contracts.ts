@@ -199,6 +199,16 @@ export const graphSectionSchema = z
           .strict(),
       )
       .optional(),
+    tour: z
+      .array(
+        z
+          .object({
+            order: z.number().int().positive(),
+            nodeId: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

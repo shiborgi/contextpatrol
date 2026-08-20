@@ -1,4 +1,5 @@
 import type { Analysis } from "../analysis/analysis.js";
+import { rankEntryPoints } from "../analysis/entries.js";
 import { assignLayers } from "../analysis/layers.js";
 import { estimateTokens } from "../budget.js";
 import type { Focus } from "../constants.js";
@@ -27,17 +28,15 @@ function buildArchitectureEvidence(
   const byLanguage = new Map<string, number>();
   const byDir = new Map<string, number>();
   let symbolCount = 0;
-  const entryPoints: string[] = [];
 
   for (const file of fileFacts) {
     byLanguage.set(file.language, (byLanguage.get(file.language) ?? 0) + 1);
     const dir = file.path.includes("/") ? (file.path.split("/")[0] ?? ".") : ".";
     byDir.set(dir, (byDir.get(dir) ?? 0) + 1);
     symbolCount += file.symbols.length;
-    if (/^(src\/)?index\.(ts|js|tsx|jsx)$/i.test(file.path)) {
-      entryPoints.push(file.path);
-    }
   }
+
+  const entryPoints = rankEntryPoints(fileFacts.map((f) => f.path)).slice(0, 5);
 
   const languages = [...byLanguage.entries()]
     .sort((a, b) => compareBytewise(a[0], b[0]))
