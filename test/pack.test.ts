@@ -798,6 +798,81 @@ test("WORK-7.3.2 self-repo graph pack emits a tour", async () => {
   }
 });
 
+test("WORK-7.4.1 self-repo graph pack emits dirImports and architecture lists Dir imports", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "dir imports",
+    focus: ["architecture", "graph"],
+    tokenBudget: 16000,
+  });
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  assert.ok(graph.dirImports, "expected dirImports in a graph pack");
+  assert.ok(
+    graph.dirImports.some((d) => d.count >= 1),
+    "expected at least one cross-directory import",
+  );
+  const arch = capsule.evidence.find((e) => e.kind === "architecture");
+  assert.ok(arch, "expected architecture evidence");
+  assert.ok(
+    arch.text.includes("Dir imports:"),
+    `expected Dir imports: in\n${arch.text}`,
+  );
+});
+
+test("WORK-7.4.2 godSymbols excludes leaf utilities", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "hubs",
+    focus: ["graph"],
+    tokenBudget: 16000,
+  });
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  const names = (graph.godSymbols ?? []).map((g) => g.qualifiedName);
+  const forbidden = ["compareBytewise", "digestOf", "estimateTokens", "runGit"];
+  for (const f of forbidden) {
+    assert.equal(
+      names.some((n) => n.endsWith("#" + f) || n.endsWith("#" + f)),
+      false,
+      `godSymbols should not contain ${f}: ${JSON.stringify(names)}`,
+    );
+  }
+});
+
+test("WORK-7.4.3 emitted communities carry a non-empty label", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "community labels",
+    focus: ["architecture", "graph"],
+    tokenBudget: 16000,
+  });
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  const communities = graph.communities ?? [];
+  assert.ok(communities.length > 0, "expected communities");
+  for (const c of communities) {
+    assert.ok(
+      typeof c.label === "string" && c.label.length > 0,
+      `community ${c.id} must have a non-empty label`,
+    );
+  }
+  const arch = capsule.evidence.find((e) => e.kind === "architecture");
+  assert.ok(arch, "expected architecture evidence");
+  // a2: Communities line carries a directory-prefix label, not only c-<hex> id
+  const commLine = /Communities: .*\(([^)]*)\)/.exec(arch.text)?.[1] ?? "";
+  assert.ok(
+    commLine.includes("/") || commLine.startsWith("src"),
+    `expected a directory-prefix label in Communities:, got "${commLine}"`,
+  );
+});
+
 test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
   const { repo, cleanup } = makeRepo();
   try {

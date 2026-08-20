@@ -42,7 +42,13 @@ test("generates questions from available signals referencing real ids", () => {
     unresolvedCallCensus: [],
   };
   const communities: Community[] = [
-    { id: "c-abc", members: ["src/auth.ts#AuthService"], memberCount: 1, cohesion: 0 },
+    {
+      id: "c-abc",
+      label: "src/auth",
+      members: ["src/auth.ts#AuthService"],
+      memberCount: 1,
+      cohesion: 0,
+    },
   ];
   const godSymbols = [{ qualifiedName: "src/auth.ts#AuthService", score: 3 }];
   const surprises = [
@@ -112,6 +118,7 @@ test("community question cites the highest in-degree member, not members[0]", ()
   const communities: Community[] = [
     {
       id: "c-x",
+      label: "src",
       members: ["src/a.ts#Other", "src/b.ts#Hub"],
       memberCount: 2,
       cohesion: 0,

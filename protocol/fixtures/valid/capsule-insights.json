@@ -33,6 +33,7 @@
       "communities": [
         {
           "id": "c-fef2c55e",
+          "label": "src",
           "memberCount": 2,
           "topFiles": ["src/hub.ts"],
           "cohesion": 1

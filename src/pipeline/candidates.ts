@@ -1,4 +1,5 @@
 import type { Analysis } from "../analysis/analysis.js";
+import { computeDirImports } from "../analysis/dir-imports.js";
 import { rankEntryPoints } from "../analysis/entries.js";
 import { assignLayers } from "../analysis/layers.js";
 import { estimateTokens } from "../budget.js";
@@ -72,7 +73,7 @@ function buildArchitectureEvidence(
             .sort((a, b) => b[1] - a[1] || compareBytewise(a[0], b[0]))
             .slice(0, 1)
             .map(([p]) => redact(p))[0] || "";
-        return `${c.id}${top ? ":" + redact(top) : ""}`;
+        return `${c.label || c.id}${top ? ":" + redact(top) : ""}`;
       })
       .slice(0, 5)
       .join(", ");
@@ -114,6 +115,7 @@ function buildArchitectureEvidence(
     ...(focus.includes("graph")
       ? [`Layers: ${layerSummary(scan.fileFacts.map((f) => f.path))}`]
       : []),
+    ...(focus.includes("graph") ? dirImportsText(analysis) : []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -133,6 +135,16 @@ function layerSummary(filePaths: string[]): string {
   return assignLayers(filePaths)
     .map((l) => `${l.id}:${l.nodeIds.length}`)
     .join(", ");
+}
+
+function dirImportsText(analysis: Analysis): string[] {
+  const dirs = computeDirImports(analysis.graph).slice(0, 8);
+  if (dirs.length === 0) {
+    return [];
+  }
+  return [
+    `Dir imports: ${dirs.map((d) => `${d.from}->${d.to}:${d.count}`).join(", ")}`,
+  ];
 }
 
 function symbolEvidence(symbol: SymbolFact): Evidence {

@@ -3,6 +3,7 @@ import type { CodeGraph } from "./code-graph.js";
 
 export interface Community {
   id: string;
+  label: string;
   members: string[]; // symbol qualified names (sym: prefix stripped)
   memberCount: number;
   cohesion: number;
@@ -221,6 +222,28 @@ function cohesionOf(members: string[], adjacency: Adjacency): number {
   return possible > 0 ? internal / possible : 0;
 }
 
+// WORK-7.4.3: majority directory label. Each member qualified name is
+// filePath#sym; take the file's directory (dirname, or "." at root), then pick
+// the most common by count, ties broken bytewise. Deterministic and non-empty.
+function majorityDir(qualified: string[]): string {
+  const counts = new Map<string, number>();
+  for (const q of qualified) {
+    const file = q.split("#")[0] ?? q;
+    const lastSlash = file.lastIndexOf("/");
+    const dir = lastSlash === -1 ? "." : file.slice(0, lastSlash);
+    counts.set(dir, (counts.get(dir) ?? 0) + 1);
+  }
+  let best = ".";
+  let bestCount = -1;
+  for (const [dir, count] of counts) {
+    if (count > bestCount || (count === bestCount && compareBytewise(dir, best) < 0)) {
+      best = dir;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
 function toCommunity(members: string[], adjacency: Adjacency): Community {
   const sorted = [...members].sort(compareBytewise);
   const qualified = sorted.map(stripPrefix);
@@ -230,6 +253,7 @@ function toCommunity(members: string[], adjacency: Adjacency): Community {
 
   return {
     id,
+    label: majorityDir(qualified),
     members: qualified,
     memberCount: qualified.length,
     cohesion: Number(cohesion.toFixed(4)),

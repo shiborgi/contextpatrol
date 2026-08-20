@@ -14,6 +14,19 @@ const DEFAULT_NOISE = new Set([
   "require",
   "module",
   "exports",
+  // WORK-7.4.2: leaf utilities undercut hubs; drop them from god-symbol ranking.
+  "compareBytewise",
+  "digestOf",
+  "canonicalJson",
+  "estimateTokens",
+  "redact",
+  "isDenied",
+  "canonicalizePath",
+  "runGit",
+  "runGitNullable",
+  "readSource",
+  "languageOf",
+  "compareBytewiseBytes",
 ]);
 
 function filePathOf(qname: string): string {

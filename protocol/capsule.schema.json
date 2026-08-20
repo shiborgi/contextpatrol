@@ -126,9 +126,10 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["id", "memberCount", "topFiles", "cohesion"],
+                "required": ["id", "label", "memberCount", "topFiles", "cohesion"],
                 "properties": {
                   "id": { "type": "string" },
+                  "label": { "type": "string" },
                   "memberCount": { "type": "integer", "minimum": 0 },
                   "topFiles": { "type": "array", "items": { "type": "string" } },
                   "cohesion": { "type": "number" }
@@ -245,6 +246,19 @@
                 "properties": {
                   "order": { "type": "integer", "exclusiveMinimum": 0 },
                   "nodeId": { "type": "string" }
+                }
+              }
+            },
+            "dirImports": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to", "count"],
+                "properties": {
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                  "count": { "type": "integer", "minimum": 0 }
                 }
               }
             }

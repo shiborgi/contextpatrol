@@ -52,8 +52,8 @@ test("ranks cross-community edge as a surprise", () => {
     unresolvedCallCensus: [],
   };
   const communities: Community[] = [
-    { id: "c-1", members: ["src/a.ts#A"], memberCount: 1, cohesion: 0 },
-    { id: "c-2", members: ["src/b.ts#B"], memberCount: 1, cohesion: 0 },
+    { id: "c-1", label: "src", members: ["src/a.ts#A"], memberCount: 1, cohesion: 0 },
+    { id: "c-2", label: "src", members: ["src/b.ts#B"], memberCount: 1, cohesion: 0 },
   ];
   const files = [
     file("src/a.ts", "typescript", ["A"]),
@@ -103,8 +103,14 @@ test("scores cross-language and hub-periphery reasons", () => {
     unresolvedCallCensus: [],
   };
   const communities: Community[] = [
-    { id: "c-1", members: ["src/a.ts#Hub"], memberCount: 1, cohesion: 0 },
-    { id: "c-2", members: ["src/b.js#Leaf"], memberCount: 1, cohesion: 0 },
+    { id: "c-1", label: "src", members: ["src/a.ts#Hub"], memberCount: 1, cohesion: 0 },
+    {
+      id: "c-2",
+      label: "src",
+      members: ["src/b.js#Leaf"],
+      memberCount: 1,
+      cohesion: 0,
+    },
   ];
   const files = [
     file("src/a.ts", "typescript", ["Hub"]),

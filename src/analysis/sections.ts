@@ -7,6 +7,7 @@ import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
 import { isShimPath } from "../typescript-extractor.js";
 import type { Analysis } from "./analysis.js";
+import { computeDirImports } from "./dir-imports.js";
 import { rankEntryPoints } from "./entries.js";
 import { assignLayers } from "./layers.js";
 import { scoreSymbolRisk } from "./risk.js";
@@ -36,6 +37,7 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
       .map(([path]) => redact(path));
     return {
       id: c.id,
+      label: c.label,
       memberCount: c.memberCount,
       topFiles,
       cohesion: c.cohesion,
@@ -170,6 +172,12 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
     if (tour.length > 0) {
       graphSection.tour = tour;
     }
+  }
+
+  // WORK-7.4.1: inter-directory IMPORTS matrix.
+  const dirImports = computeDirImports(analysis.graph);
+  if (dirImports.length > 0) {
+    graphSection.dirImports = dirImports;
   }
 
   return graphSection;

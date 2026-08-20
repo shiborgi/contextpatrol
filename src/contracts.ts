@@ -109,6 +109,7 @@ export const graphSectionSchema = z
         z
           .object({
             id: z.string(),
+            label: z.string().min(1),
             memberCount: z.number().int().nonnegative(),
             topFiles: z.array(z.string()),
             cohesion: z.number(),
@@ -205,6 +206,17 @@ export const graphSectionSchema = z
           .object({
             order: z.number().int().positive(),
             nodeId: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
+    dirImports: z
+      .array(
+        z
+          .object({
+            from: z.string(),
+            to: z.string(),
+            count: z.number().int().nonnegative(),
           })
           .strict(),
       )

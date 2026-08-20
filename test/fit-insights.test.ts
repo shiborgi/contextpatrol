@@ -20,7 +20,9 @@ function graphSection() {
       },
     ],
     referenceCensus: [{ qualifiedName: "src/a.ts#A", incomingCalls: 5 }],
-    communities: [{ id: "c-1", memberCount: 2, topFiles: ["src/a.ts"], cohesion: 1 }],
+    communities: [
+      { id: "c-1", label: "src", memberCount: 2, topFiles: ["src/a.ts"], cohesion: 1 },
+    ],
     routes: [{ id: "route:x", method: "GET", path: "/x", handler: null }],
     deadCode: [{ qualifiedName: "src/a.ts#A", confidence: 0.6 }],
     surprises: [
@@ -29,6 +31,7 @@ function graphSection() {
     questions: [{ text: "What depends on A?", nodeId: "sym:src/a.ts#A" }],
     layers: [{ id: "layer:test", name: "Test", nodeIds: ["file:src/a.ts"] }],
     tour: [{ order: 1, nodeId: "file:src/a.ts" }],
+    dirImports: [{ from: "src", to: "test", count: 1 }],
   };
 }
 
@@ -164,6 +167,13 @@ test("stepwise drop order: outlines -> referenceCensus -> routes -> deadCode -> 
   delete noTour.graph!.tour;
   result = fitOptionalInsights(result, estimateTokens(canonicalJson(noTour)));
   assert.equal(result.graph?.tour, undefined);
+  assert.ok(result.graph?.dirImports);
+
+  // dirImports drops last before only required fields remain
+  const noDirImports = { ...result, graph: { ...result.graph! } };
+  delete noDirImports.graph!.dirImports;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noDirImports)));
+  assert.equal(result.graph?.dirImports, undefined);
   assert.ok(result.graph?.fileCount);
   assert.ok(result.graph?.godSymbols);
   assert.ok(result.coverage);
