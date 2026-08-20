@@ -78,7 +78,11 @@ deterministic score and reasons) and `questions` (template-generated review
 questions referencing real graph node ids).
 
 These optional graph fields are dropped in priority order under tight token
-budgets (outlines and referenceCensus first).
+budgets (outlines and referenceCensus first). `layers` groups files by stable
+path patterns, `tour` gives a bounded breadth-first read order from the highest
+scoring entry point, and `dirImports` summarizes cross-directory flow. The
+coverage section also reports graph integrity counts and excludes test callers
+from unresolved-call census noise.
 
 ```json
 {
@@ -145,6 +149,11 @@ the analyzed repository. It is never written by `pack`.
 - Malformed JSON, unknown keys, or invalid paths → `REQUEST_INVALID`.
 
 `pack` never writes to the analyzed repository.
+
+ContextPatrol has no integration with Understand-Anything. It remains a
+local-first pack provider: callers may use its capsules as context, but the
+pack command neither invokes external understanding services nor writes their
+state into the analyzed repository.
 
 ## Guarantees
 

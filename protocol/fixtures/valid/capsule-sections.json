@@ -29,7 +29,12 @@
       "symbolCount": 8,
       "edgeCount": 5,
       "godSymbols": [{ "qualifiedName": "src/auth.ts#AuthService", "score": 3 }],
-      "boundaryFiles": ["src/auth.ts"]
+      "boundaryFiles": ["src/auth.ts"],
+      "layers": [
+        { "id": "layer:src", "name": "src", "nodeIds": ["file:src/auth.ts"] }
+      ],
+      "tour": [{ "order": 1, "nodeId": "file:src/auth.ts" }],
+      "dirImports": [{ "from": "src", "to": "lib", "count": 2 }]
     },
     "review": {
       "changedSymbols": ["src/auth.ts#AuthService"],

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- INIT-7: deterministic architectural layers, scored entry points and
+  breadth-first read-order tours; cross-directory import flow, quieter hubs and
+  directory-labeled communities; budget and overlay honesty; graph-integrity
+  coverage with test-call noise excluded. README and architecture docs now
+  describe the complete graph surface. ContextPatrol remains read-only and has
+  no Understand-Anything integration.
 - INIT-6: `optionalRequestFields` in handshake (`changedPaths`, `gitRef`, `baseRef`, `includePaths`, `excludePaths`); `outlines` (capped file/symbol overview) and `referenceCensus` (incoming CALLS counts) as optional `sections.graph` fields (dropped first under budget); denser architecture evidence (Communities id:topFile, Scripts, Outline hubs); read-only `contextpatrol.project.json` overlay at git root (request fields win).
 - INIT-5: `gitRef`, path scoping (`includePaths`/`excludePaths`), and `baseRef` review delta on pack requests. Caller recipes (map, hotspot, impact) documented in README. Optional graph insights now drop `routes`/`deadCode`/`surprises` before `communities`/`questions` under tight budgets.
 - Extraction v2: import, call and rationale facts; `isTest` heuristic.
