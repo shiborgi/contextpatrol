@@ -252,6 +252,12 @@ export const coverageSectionSchema = z
     truncated: z.boolean(),
     languagesSeen: z.array(z.string()),
     historyWindow: z.number().int().nonnegative(),
+    graphIntegrity: z
+      .object({
+        missingSources: z.number().int().nonnegative(),
+        missingTargets: z.number().int().nonnegative(),
+      })
+      .strict(),
   })
   .strict();
 

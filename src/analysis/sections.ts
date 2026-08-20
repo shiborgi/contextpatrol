@@ -5,7 +5,7 @@ import { compareBytewise } from "../hash.js";
 import type { SymbolFact } from "../model.js";
 import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
-import { isShimPath } from "../typescript-extractor.js";
+import { isShimPath, isTestPath } from "../typescript-extractor.js";
 import type { Analysis } from "./analysis.js";
 import { computeDirImports } from "./dir-imports.js";
 import { rankEntryPoints } from "./entries.js";
@@ -250,12 +250,38 @@ function buildReviewSection(
   };
 }
 
+// WORK-7.5.2: caller ids are either file:<path> (file-level) or <path>#<sym>
+// (symbol-level). Extract the file path to decide test membership.
+function callerPathOf(callerQualifiedName: string): string {
+  if (callerQualifiedName.startsWith("file:")) {
+    return callerQualifiedName.slice(5);
+  }
+  return callerQualifiedName.split("#")[0] ?? callerQualifiedName;
+}
+
+// WORK-7.5.1: count edges whose endpoints are missing from the node set.
+function graphIntegrityOf(graph: Analysis["graph"]) {
+  const present = new Set(graph.nodes.map((n) => n.id));
+  let missingSources = 0;
+  let missingTargets = 0;
+  for (const edge of graph.edges) {
+    if (!present.has(edge.from)) {
+      missingSources += 1;
+    }
+    if (!present.has(edge.to)) {
+      missingTargets += 1;
+    }
+  }
+  return { missingSources, missingTargets };
+}
+
 export function buildCoverageSection(analysis: Analysis, scan: ScanResult) {
   const languagesSeen = [...new Set(scan.fileFacts.map((f) => f.language))].sort(
     compareBytewise,
   );
 
   const unresolvedCalls = analysis.graph.unresolvedCallCensus
+    .filter((c) => !isTestPath(callerPathOf(c.callerQualifiedName)))
     .map((c) => ({
       callerQualifiedName: redact(c.callerQualifiedName),
       count: c.count,
@@ -278,6 +304,7 @@ export function buildCoverageSection(analysis: Analysis, scan: ScanResult) {
     truncated: scan.truncated,
     languagesSeen,
     historyWindow: analysis.historyWindow,
+    graphIntegrity: graphIntegrityOf(analysis.graph),
   };
 }
 

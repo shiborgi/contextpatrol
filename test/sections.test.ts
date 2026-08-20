@@ -126,3 +126,54 @@ test("buildCoverageSection is deterministic across runs", () => {
   const section2 = buildCoverageSection(analysis, emptyScan());
   assert.deepEqual(section1.unresolvedCalls, section2.unresolvedCalls);
 });
+
+test("WORK-7.5.1 graphIntegrity reports missing edge endpoints", () => {
+  const analysis = emptyAnalysis({
+    graph: {
+      nodes: [
+        { id: "sym:src/a.ts#A", kind: "symbol" },
+        { id: "file:src/a.ts", kind: "file" },
+      ],
+      edges: [
+        {
+          kind: "CALLS",
+          from: "sym:src/a.ts#A",
+          to: "sym:src/ghost.ts#G",
+          confidence: 1,
+          tier: "inferred",
+        },
+        {
+          kind: "CALLS",
+          from: "sym:src/ghost2.ts#H",
+          to: "sym:src/a.ts#A",
+          confidence: 1,
+          tier: "inferred",
+        },
+      ],
+      unresolvedCallCensus: [],
+    },
+  });
+  const section = buildCoverageSection(analysis, emptyScan());
+  assert.equal(section.graphIntegrity.missingSources, 1);
+  assert.equal(section.graphIntegrity.missingTargets, 1);
+});
+
+test("WORK-7.5.2 unresolvedCalls skips test callers and keeps non-test callers", () => {
+  const analysis = emptyAnalysis({
+    graph: {
+      nodes: [],
+      edges: [],
+      unresolvedCallCensus: [
+        { callerQualifiedName: "file:test/pack.test.ts", count: 40 },
+        { callerQualifiedName: "test/pack.test.ts#helper", count: 9 },
+        { callerQualifiedName: "src/pipeline/emit.ts#buildCapsule", count: 30 },
+        { callerQualifiedName: "file:src/a.ts", count: 3 },
+      ],
+    },
+  });
+  const section = buildCoverageSection(analysis, emptyScan());
+  const names = section.unresolvedCalls.map((c) => c.callerQualifiedName);
+  assert.equal(names.includes("file:test/pack.test.ts"), false);
+  assert.equal(names.includes("test/pack.test.ts#helper"), false);
+  assert.equal(names.includes("src/pipeline/emit.ts#buildCapsule"), true);
+});

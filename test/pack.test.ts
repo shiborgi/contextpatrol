@@ -873,6 +873,40 @@ test("WORK-7.4.3 emitted communities carry a non-empty label", async () => {
   );
 });
 
+test("WORK-7.5.1 self-repo pack has an intact graph integrity census", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "graph integrity",
+    focus: ["graph"],
+    tokenBudget: 16000,
+  });
+  const cov = capsule.sections.coverage;
+  assert.ok(cov);
+  assert.equal(cov.graphIntegrity.missingSources, 0);
+  assert.equal(cov.graphIntegrity.missingTargets, 0);
+});
+
+test("WORK-7.5.2 self-repo unresolvedCalls excludes test callers", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "coverage",
+    focus: ["graph"],
+    tokenBudget: 16000,
+  });
+  const cov = capsule.sections.coverage;
+  assert.ok(cov);
+  const callers = cov.unresolvedCalls.map((c) => c.callerQualifiedName);
+  assert.equal(
+    callers.some((c) => c.startsWith("file:test/") || /test[\\/]/.test(c)),
+    false,
+    `unexpected test caller in unresolvedCalls: ${JSON.stringify(callers)}`,
+  );
+});
+
 test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
   const { repo, cleanup } = makeRepo();
   try {

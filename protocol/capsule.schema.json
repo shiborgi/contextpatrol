@@ -327,7 +327,7 @@
         "coverage": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["unresolvedCalls", "skipped", "truncated", "languagesSeen", "historyWindow"],
+          "required": ["unresolvedCalls", "skipped", "truncated", "languagesSeen", "historyWindow", "graphIntegrity"],
           "properties": {
             "unresolvedCalls": {
               "type": "array",
@@ -352,7 +352,16 @@
             },
             "truncated": { "type": "boolean" },
             "languagesSeen": { "type": "array", "items": { "type": "string" } },
-            "historyWindow": { "type": "integer", "minimum": 0 }
+            "historyWindow": { "type": "integer", "minimum": 0 },
+            "graphIntegrity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["missingSources", "missingTargets"],
+              "properties": {
+                "missingSources": { "type": "integer", "minimum": 0 },
+                "missingTargets": { "type": "integer", "minimum": 0 }
+              }
+            }
           }
         }
       }

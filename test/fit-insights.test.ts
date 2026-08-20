@@ -41,6 +41,7 @@ const coverage = {
   truncated: false,
   languagesSeen: ["typescript"],
   historyWindow: 2000,
+  graphIntegrity: { missingSources: 0, missingTargets: 0 },
 };
 
 function sectionsWithGraph(): Sections {
