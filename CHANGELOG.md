@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- INIT-5: `gitRef`, path scoping (`includePaths`/`excludePaths`), and `baseRef` review delta on pack requests. Caller recipes (map, hotspot, impact) documented in README. Optional graph insights now drop `routes`/`deadCode`/`surprises` before `communities`/`questions` under tight budgets.
 - Extraction v2: import, call and rationale facts; `isTest` heuristic.
 - Code graph with confidence tiers: `CONTAINS`, `IMPORTS`, `INHERITS`,
   `IMPLEMENTS`, `CALLS` (same-file 0.95 / import-scoped 0.90), `TESTED_BY`

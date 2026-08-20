@@ -1,0 +1,11 @@
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "review impact of changes using refs and path scope",
+  "focus": ["graph", "review"],
+  "tokenBudget": 2000,
+  "gitRef": "main",
+  "baseRef": "origin/main",
+  "includePaths": ["src/"],
+  "excludePaths": ["src/test/"]
+}

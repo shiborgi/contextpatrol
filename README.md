@@ -87,6 +87,42 @@ ids).
 }
 ```
 
+## Recipes (caller-side)
+
+CodePatrol profiles (or other callers) may use these high-level recipes when deciding how to populate a pack request. The recipes are naming conventions only — they are not fields in the pack protocol.
+
+- **map**: `architecture` + `graph` — broad structural view of the codebase.
+- **hotspot**: `graph` + `includePaths` — focus analysis on specific subtrees.
+- **impact**: `graph` + `review` using a worktree workspace and `baseRef` — review delta between a base and the target.
+
+Example using the current worktree (default behaviour):
+
+```json
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "map the authentication module",
+  "focus": ["architecture", "graph"],
+  "tokenBudget": 2000
+}
+```
+
+Example using `gitRef` + `baseRef` for impact review:
+
+```json
+{
+  "protocolVersion": 1,
+  "workspace": "/repo",
+  "intent": "review impact of changes",
+  "focus": ["graph", "review"],
+  "tokenBudget": 2000,
+  "gitRef": "feature/xyz",
+  "baseRef": "main"
+}
+```
+
+The pack request protocol strictly rejects `stage`, `operation`, and `runId` (lifecycle vocabulary belongs to the caller/profile, not the pack).
+
 ## Guarantees
 
 - never writes to the analyzed repository;
