@@ -17,10 +17,8 @@ function symbolId(symbol: SymbolFact, kind: "sym" | "source"): string {
   return `${kind}:${symbol.qualifiedName}#L${symbol.range.startLine}-${symbol.range.endLine}`;
 }
 
-function buildArchitectureEvidence(
-  fileFacts: { path: string; language: string; symbols: SymbolFact[] }[],
-  analysis: Analysis,
-): Evidence {
+function buildArchitectureEvidence(scan: ScanResult, analysis: Analysis): Evidence {
+  const fileFacts = scan.fileFacts;
   const byLanguage = new Map<string, number>();
   const byDir = new Map<string, number>();
   let symbolCount = 0;
@@ -48,16 +46,67 @@ function buildArchitectureEvidence(
   const godNames = analysis.godSymbols.slice(0, 5).map((g) => g.qualifiedName);
   const boundaryNames = analysis.boundaryFiles.slice(0, 5);
 
+  // communities with first topFile (member count desc, then path bytewise)
+  let communitiesLine = "";
+  if (analysis.communities.length > 0) {
+    // build symbol to path map
+    const symbolToPath = new Map<string, string>();
+    for (const f of fileFacts) {
+      for (const s of f.symbols) {
+        symbolToPath.set(s.qualifiedName, f.path);
+      }
+    }
+    const comms = analysis.communities
+      .map((c) => {
+        const fileCounts = new Map<string, number>();
+        for (const m of c.members) {
+          const p = symbolToPath.get(m) ?? "<unknown>";
+          fileCounts.set(p, (fileCounts.get(p) ?? 0) + 1);
+        }
+        const top =
+          [...fileCounts.entries()]
+            .sort((a, b) => b[1] - a[1] || compareBytewise(a[0], b[0]))
+            .slice(0, 1)
+            .map(([p]) => redact(p))[0] || "";
+        return `${c.id}${top ? ":" + redact(top) : ""}`;
+      })
+      .slice(0, 5)
+      .join(", ");
+    communitiesLine = `Communities: ${analysis.communities.length} (${comms})`;
+  }
+
+  // scripts from root package.json (already parsed at scan time)
+  const scriptsLine =
+    scan.scriptNames && scan.scriptNames.length > 0
+      ? `Scripts: ${scan.scriptNames.join(", ")}`
+      : "";
+
+  // outline hubs: top 5 files by symbol count (same as outlines ranking)
+  let outlineHubsLine = "";
+  if (fileFacts.some((f) => f.symbols.length > 0)) {
+    const ranked = [...fileFacts]
+      .sort((a, b) => {
+        const ca = a.symbols.length;
+        const cb = b.symbols.length;
+        return cb - ca || compareBytewise(a.path, b.path);
+      })
+      .slice(0, 5)
+      .map((f) => redact(f.path));
+    if (ranked.length > 0) {
+      outlineHubsLine = `Outline hubs: ${ranked.join(", ")}`;
+    }
+  }
+
   const text = [
     `Files: ${fileFacts.length} (${languages || "none"})`,
     `Symbols: ${symbolCount}`,
     `Directories: ${dirs || "none"}`,
     entryPoints.length > 0 ? `Entry points: ${entryPoints.join(", ")}` : "",
     godNames.length > 0 ? `God symbols: ${godNames.join(", ")}` : "",
-    analysis.communities.length > 0
-      ? `Communities: ${analysis.communities.length}`
-      : "",
+    communitiesLine,
     boundaryNames.length > 0 ? `Boundary files: ${boundaryNames.join(", ")}` : "",
+    scriptsLine,
+    outlineHubsLine,
   ]
     .filter(Boolean)
     .join("\n");
@@ -131,7 +180,7 @@ export function buildCandidates(
   const candidates: Candidate[] = [];
   if (focus.includes("architecture")) {
     candidates.push({
-      evidence: buildArchitectureEvidence(scan.fileFacts, analysis),
+      evidence: buildArchitectureEvidence(scan, analysis),
       clipable: false,
     });
   }

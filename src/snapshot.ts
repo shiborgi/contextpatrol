@@ -8,7 +8,7 @@ import {
   readBlob,
   type WorkspaceIdentity,
 } from "./git-workspace.js";
-import { digestOf, digestOfBytes } from "./hash.js";
+import { compareBytewise, digestOf, digestOfBytes } from "./hash.js";
 import type { FileFact } from "./model.js";
 import { isDenied, matchesInclude } from "./security.js";
 import { readSource } from "./source-reader.js";
@@ -44,6 +44,7 @@ export interface ScanResult {
   skipped: Array<{ path: string; reason: string }>;
   dirtyEntries: Array<{ path: string; status: string }>;
   dirtyFiles: Array<{ path: string; digest: string }>;
+  scriptNames?: string[];
 }
 
 export function policyDigestFor(denylist: readonly string[]): string {
@@ -86,6 +87,7 @@ export async function scanWorkspace(
   const fileManifest: Array<{ path: string; digest: string }> = [];
   const dirtyManifest: Array<{ path: string; digest: string }> = [];
   const dirtyFiles: Array<{ path: string; digest: string }> = [];
+  let scriptNames: string[] = [];
 
   const scoped = eligible.slice(0, maxFiles);
 
@@ -122,6 +124,26 @@ export async function scanWorkspace(
       routes: extraction.routes,
     });
 
+    if (path === "package.json" && language === "json") {
+      try {
+        const pkg = JSON.parse(read.content);
+        if (
+          pkg &&
+          typeof pkg === "object" &&
+          pkg.scripts &&
+          typeof pkg.scripts === "object"
+        ) {
+          const names = Object.keys(pkg.scripts)
+            .filter((k: string) => typeof pkg.scripts[k] === "string")
+            .sort(compareBytewise)
+            .slice(0, 5);
+          scriptNames = names;
+        }
+      } catch {
+        // ignore invalid package.json
+      }
+    }
+
     if (dirtySet.has(path)) {
       dirtyManifest.push({ path, digest });
       dirtyFiles.push({ path, digest });
@@ -141,6 +163,7 @@ export async function scanWorkspace(
     skipped,
     dirtyEntries: rawDirty,
     dirtyFiles,
+    scriptNames,
   };
 }
 
@@ -184,6 +207,7 @@ async function scanFromRef(
 
   const eligible: string[] = [];
   const skipped: Array<{ path: string; reason: string }> = [];
+  let scriptNames: string[] = [];
   for (const path of allPaths) {
     if (isDenied(path, denylist)) {
       skipped.push({ path, reason: "denylist" });
@@ -248,6 +272,26 @@ async function scanFromRef(
       rationale: extraction.rationale,
       routes: extraction.routes,
     });
+
+    if (path === "package.json" && language === "json") {
+      try {
+        const pkg = JSON.parse(content);
+        if (
+          pkg &&
+          typeof pkg === "object" &&
+          pkg.scripts &&
+          typeof pkg.scripts === "object"
+        ) {
+          const names = Object.keys(pkg.scripts)
+            .filter((k: string) => typeof pkg.scripts[k] === "string")
+            .sort(compareBytewise)
+            .slice(0, 5);
+          scriptNames = names;
+        }
+      } catch {
+        // ignore invalid package.json
+      }
+    }
   }
 
   const dirtyDigest = digestOf([]);
@@ -263,5 +307,6 @@ async function scanFromRef(
     skipped,
     dirtyEntries: [],
     dirtyFiles: [],
+    scriptNames,
   };
 }
