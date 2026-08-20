@@ -160,6 +160,34 @@ export const graphSectionSchema = z
           .strict(),
       )
       .optional(),
+    outlines: z
+      .array(
+        z
+          .object({
+            path: z.string(),
+            symbols: z.array(
+              z
+                .object({
+                  qualifiedName: z.string(),
+                  kind: z.string(),
+                  exported: z.boolean(),
+                })
+                .strict(),
+            ),
+          })
+          .strict(),
+      )
+      .optional(),
+    referenceCensus: z
+      .array(
+        z
+          .object({
+            qualifiedName: z.string(),
+            incomingCalls: z.number().int().nonnegative(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

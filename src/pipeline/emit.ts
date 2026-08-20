@@ -15,9 +15,11 @@ import type { ScanResult } from "../snapshot.js";
 import type { Candidate } from "./candidates.js";
 
 // Optional graph insight fields, dropped in this fixed order when the emitted
-// sections would exceed the remaining budget (routes first; questions last).
+// sections would exceed the remaining budget (outlines first; questions last).
 // Required graph counts and the coverage section are never dropped.
 const OPTIONAL_INSIGHT_DROP_ORDER = [
+  "outlines",
+  "referenceCensus",
   "routes",
   "deadCode",
   "surprises",

@@ -184,6 +184,42 @@
                   "nodeId": { "type": "string" }
                 }
               }
+            },
+            "outlines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "symbols"],
+                "properties": {
+                  "path": { "type": "string" },
+                  "symbols": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["qualifiedName", "kind", "exported"],
+                      "properties": {
+                        "qualifiedName": { "type": "string" },
+                        "kind": { "type": "string" },
+                        "exported": { "type": "boolean" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "referenceCensus": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["qualifiedName", "incomingCalls"],
+                "properties": {
+                  "qualifiedName": { "type": "string" },
+                  "incomingCalls": { "type": "integer", "minimum": 0 }
+                }
+              }
             }
           }
         },

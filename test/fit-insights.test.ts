@@ -13,6 +13,13 @@ function graphSection() {
     edgeCount: 3,
     godSymbols: [{ qualifiedName: "src/a.ts#A", score: 2 }],
     boundaryFiles: [],
+    outlines: [
+      {
+        path: "src/a.ts",
+        symbols: [{ qualifiedName: "src/a.ts#A", kind: "function", exported: true }],
+      },
+    ],
+    referenceCensus: [{ qualifiedName: "src/a.ts#A", incomingCalls: 5 }],
     communities: [{ id: "c-1", memberCount: 2, topFiles: ["src/a.ts"], cohesion: 1 }],
     routes: [{ id: "route:x", method: "GET", path: "/x", handler: null }],
     deadCode: [{ qualifiedName: "src/a.ts#A", confidence: 0.6 }],
@@ -45,6 +52,8 @@ test("drops every optional insight when remaining is zero, keeping required fiel
   const result = fitOptionalInsights(sectionsWithGraph(), 0);
   const graph = result.graph;
   assert.ok(graph);
+  assert.equal(graph.outlines, undefined);
+  assert.equal(graph.referenceCensus, undefined);
   assert.equal(graph.communities, undefined);
   assert.equal(graph.routes, undefined);
   assert.equal(graph.deadCode, undefined);
@@ -58,31 +67,45 @@ test("drops every optional insight when remaining is zero, keeping required fiel
   assert.ok(result.coverage);
 });
 
-test("drops routes first, then deadCode, surprises, communities, questions last", () => {
+test("drops outlines and referenceCensus first, then routes, etc.", () => {
   const sections = sectionsWithGraph();
 
-  const withoutRoutes: Sections = {
+  const withoutOutlines: Sections = {
     ...sections,
     graph: { ...sections.graph! },
   };
-  delete withoutRoutes.graph!.routes;
+  delete withoutOutlines.graph!.outlines;
+  delete withoutOutlines.graph!.referenceCensus;
 
   const result = fitOptionalInsights(
     sections,
-    estimateTokens(canonicalJson(withoutRoutes)),
+    estimateTokens(canonicalJson(withoutOutlines)),
   );
 
-  // only routes is dropped; communities and questions remain (they drop later)
-  assert.equal(result.graph?.routes, undefined);
+  // outlines and referenceCensus dropped first
+  assert.equal(result.graph?.outlines, undefined);
+  assert.equal(result.graph?.referenceCensus, undefined);
+  assert.ok(result.graph?.routes);
   assert.ok(result.graph?.communities);
   assert.ok(result.graph?.questions);
-  assert.ok(result.graph?.surprises);
-  assert.ok(result.graph?.deadCode);
 });
 
-test("stepwise drop order: routes -> deadCode -> surprises -> communities -> questions", () => {
+test("stepwise drop order: outlines -> referenceCensus -> routes -> deadCode -> surprises -> communities -> questions", () => {
   // Start with full, progressively lower the budget to force one drop at a time
   let result = sectionsWithGraph();
+
+  // After dropping outlines + referenceCensus
+  const noOutlines = { ...result, graph: { ...result.graph! } };
+  delete noOutlines.graph!.outlines;
+  delete noOutlines.graph!.referenceCensus;
+  result = fitOptionalInsights(result, estimateTokens(canonicalJson(noOutlines)));
+  assert.equal(result.graph?.outlines, undefined);
+  assert.equal(result.graph?.referenceCensus, undefined);
+  assert.ok(result.graph?.routes);
+  assert.ok(result.graph?.deadCode);
+  assert.ok(result.graph?.surprises);
+  assert.ok(result.graph?.communities);
+  assert.ok(result.graph?.questions);
 
   // After dropping routes
   const noRoutes = { ...result, graph: { ...result.graph! } };

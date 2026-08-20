@@ -67,6 +67,58 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
     nodeId: redact(q.nodeId),
   }));
 
+  // outlines: up to 20 files (by total symbol count desc, then path), each with
+  // up to 30 top-level symbols (exclude methods and constructors to avoid nested).
+  const fileEntries = scan.fileFacts.map((file) => ({
+    path: file.path,
+    symbols: file.symbols,
+  }));
+  const topFiles = [...fileEntries]
+    .sort((a, b) => {
+      const ca = a.symbols.length;
+      const cb = b.symbols.length;
+      return cb - ca || compareBytewise(a.path, b.path);
+    })
+    .slice(0, 20);
+  const outlines = topFiles
+    .map((f) => {
+      const topLevel = f.symbols
+        .filter((s) => s.kind !== "method" && s.kind !== "constructor")
+        .sort((a, b) => compareBytewise(a.qualifiedName, b.qualifiedName))
+        .slice(0, 30)
+        .map((s) => ({
+          qualifiedName: redact(s.qualifiedName),
+          kind: s.kind,
+          exported: s.exported,
+        }));
+      return {
+        path: redact(f.path),
+        symbols: topLevel,
+      };
+    })
+    .filter((o) => o.symbols.length > 0);
+
+  // referenceCensus: symbols with incoming CALLS, cap 20, sorted by count desc then name.
+  const incomingCalls = new Map<string, number>();
+  for (const edge of analysis.graph.edges) {
+    if (edge.kind === "CALLS" && edge.to.startsWith("sym:")) {
+      const qname = edge.to.slice(4);
+      incomingCalls.set(qname, (incomingCalls.get(qname) ?? 0) + 1);
+    }
+  }
+  const referenceCensus = [...incomingCalls.entries()]
+    .filter(([, count]) => count >= 1)
+    .map(([qname, count]) => ({
+      qualifiedName: redact(qname),
+      incomingCalls: count,
+    }))
+    .sort(
+      (a, b) =>
+        b.incomingCalls - a.incomingCalls ||
+        compareBytewise(a.qualifiedName, b.qualifiedName),
+    )
+    .slice(0, 20);
+
   const graphSection: GraphSection = {
     fileCount: scan.fileFacts.length,
     symbolCount,
@@ -94,6 +146,12 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
   }
   if (questions.length > 0) {
     graphSection.questions = questions;
+  }
+  if (outlines.length > 0) {
+    graphSection.outlines = outlines;
+  }
+  if (referenceCensus.length > 0) {
+    graphSection.referenceCensus = referenceCensus;
   }
 
   return graphSection;
