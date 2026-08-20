@@ -4,7 +4,7 @@
   "title": "ProviderDescriptor",
   "type": "object",
   "additionalProperties": false,
-  "required": ["provider", "protocolVersion", "features", "focusValues", "estimator", "limits"],
+  "required": ["provider", "protocolVersion", "features", "focusValues", "estimator", "limits", "optionalRequestFields"],
   "properties": {
     "provider": { "const": "contextpatrol" },
     "protocolVersion": { "const": 1 },
@@ -26,6 +26,10 @@
         "maxFileBytes": { "type": "integer" },
         "maxFiles": { "type": "integer" }
       }
+    },
+    "optionalRequestFields": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   }
 }

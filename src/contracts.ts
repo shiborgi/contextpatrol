@@ -26,6 +26,7 @@ export const providerDescriptorSchema = z
       maxFileBytes: z.number().int(),
       maxFiles: z.number().int(),
     }),
+    optionalRequestFields: z.string().array(),
   })
   .strict();
 
@@ -257,5 +258,12 @@ export function descriptor(): ProviderDescriptor {
     focusValues: [...FOCUS_VALUES],
     estimator: ESTIMATOR,
     limits: { ...LIMITS },
+    optionalRequestFields: [
+      "changedPaths",
+      "gitRef",
+      "baseRef",
+      "includePaths",
+      "excludePaths",
+    ],
   };
 }
