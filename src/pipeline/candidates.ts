@@ -1,4 +1,5 @@
 import type { Analysis } from "../analysis/analysis.js";
+import { assignLayers } from "../analysis/layers.js";
 import { estimateTokens } from "../budget.js";
 import type { Focus } from "../constants.js";
 import type { Evidence } from "../contracts.js";
@@ -17,7 +18,11 @@ function symbolId(symbol: SymbolFact, kind: "sym" | "source"): string {
   return `${kind}:${symbol.qualifiedName}#L${symbol.range.startLine}-${symbol.range.endLine}`;
 }
 
-function buildArchitectureEvidence(scan: ScanResult, analysis: Analysis): Evidence {
+function buildArchitectureEvidence(
+  scan: ScanResult,
+  analysis: Analysis,
+  focus: Focus[],
+): Evidence {
   const fileFacts = scan.fileFacts;
   const byLanguage = new Map<string, number>();
   const byDir = new Map<string, number>();
@@ -107,6 +112,9 @@ function buildArchitectureEvidence(scan: ScanResult, analysis: Analysis): Eviden
     boundaryNames.length > 0 ? `Boundary files: ${boundaryNames.join(", ")}` : "",
     scriptsLine,
     outlineHubsLine,
+    ...(focus.includes("graph")
+      ? [`Layers: ${layerSummary(scan.fileFacts.map((f) => f.path))}`]
+      : []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -120,6 +128,12 @@ function buildArchitectureEvidence(scan: ScanResult, analysis: Analysis): Eviden
     confidence: 0.7,
     estimatedTokens: estimateTokens(text),
   };
+}
+
+function layerSummary(filePaths: string[]): string {
+  return assignLayers(filePaths)
+    .map((l) => `${l.id}:${l.nodeIds.length}`)
+    .join(", ");
 }
 
 function symbolEvidence(symbol: SymbolFact): Evidence {
@@ -180,7 +194,7 @@ export function buildCandidates(
   const candidates: Candidate[] = [];
   if (focus.includes("architecture")) {
     candidates.push({
-      evidence: buildArchitectureEvidence(scan, analysis),
+      evidence: buildArchitectureEvidence(scan, analysis, focus),
       clipable: false,
     });
   }

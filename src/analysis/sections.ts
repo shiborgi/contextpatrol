@@ -7,6 +7,7 @@ import { redact } from "../security.js";
 import type { ScanResult } from "../snapshot.js";
 import { isShimPath } from "../typescript-extractor.js";
 import type { Analysis } from "./analysis.js";
+import { assignLayers } from "./layers.js";
 import { scoreSymbolRisk } from "./risk.js";
 
 type GraphSection = z.infer<typeof graphSectionSchema>;
@@ -152,6 +153,12 @@ export function buildGraphSection(analysis: Analysis, scan: ScanResult): GraphSe
   }
   if (referenceCensus.length > 0) {
     graphSection.referenceCensus = referenceCensus;
+  }
+
+  // WORK-7.2.1: deterministic layers partition the scanned paths.
+  const layers = assignLayers(scan.fileFacts.map((f) => f.path));
+  if (layers.length > 0) {
+    graphSection.layers = layers;
   }
 
   return graphSection;

@@ -222,6 +222,19 @@
                   "incomingCalls": { "type": "integer", "minimum": 0 }
                 }
               }
+            },
+            "layers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "name", "nodeIds"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "nodeIds": { "type": "array", "items": { "type": "string" } }
+                }
+              }
             }
           }
         },

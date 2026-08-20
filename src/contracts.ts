@@ -188,6 +188,17 @@ export const graphSectionSchema = z
           .strict(),
       )
       .optional(),
+    layers: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            name: z.string(),
+            nodeIds: z.array(z.string()),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict();
 

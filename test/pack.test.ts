@@ -712,6 +712,54 @@ test("WORK-7.1.2 architecture omits Scripts when root package.json is absent", a
   }
 });
 
+test("WORK-7.2.1 self-repo graph pack emits layers that partition scanned paths", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "layers of self-repo",
+    focus: ["graph"],
+    tokenBudget: 16000,
+  });
+  const graph = capsule.sections.graph;
+  assert.ok(graph);
+  assert.ok(graph.layers, "expected layers in a graph pack");
+  const all = graph.layers.flatMap((l) => l.nodeIds);
+  assert.equal(new Set(all).size, all.length, "layers must not duplicate nodeIds");
+  // every scanned file appears in exactly one layer
+  for (const l of graph.layers) {
+    assert.ok(l.id.startsWith("layer:"), `bad layer id ${l.id}`);
+  }
+  assert.ok(all.length > 0);
+});
+
+test("WORK-7.2.1 non-graph pack omits sections.graph therefore omits layers", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "symbols only",
+    focus: ["symbols"],
+    tokenBudget: 4000,
+  });
+  assert.equal(capsule.sections.graph, undefined);
+});
+
+test("WORK-7.2.2 architecture+graph focus lists Layers in architecture text", async () => {
+  const repoPath = process.cwd();
+  const capsule = await pack({
+    protocolVersion: 1,
+    workspace: repoPath,
+    intent: "architecture and graph",
+    focus: ["architecture", "graph"],
+    tokenBudget: 12000,
+  });
+  const arch = capsule.evidence.find((e) => e.kind === "architecture");
+  assert.ok(arch, "expected architecture evidence");
+  assert.ok(arch.text.includes("Layers:"), `expected Layers: in\n${arch.text}`);
+  assert.match(arch.text, /layer:[a-z-]+/);
+});
+
 test("gitRef targets a prior commit read-only and leaves worktree untouched", async () => {
   const { repo, cleanup } = makeRepo();
   try {
