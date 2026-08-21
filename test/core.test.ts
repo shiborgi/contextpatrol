@@ -14,9 +14,9 @@ test("digestOf ignores object key order", () => {
   assert.equal(digestOf({ a: 1, b: 2 }), digestOf({ b: 2, a: 1 }));
 });
 
-test("estimateTokens is byte-conservative", () => {
+test("estimateTokens uses the pinned cl100k estimator", () => {
   assert.equal(estimateTokens("abc"), 1);
-  assert.equal(estimateTokens("abcdef"), 2);
+  assert.equal(estimateTokens("abcdef"), 1);
   assert.ok(estimateTokens("") === 1);
 });
 

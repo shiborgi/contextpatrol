@@ -61,7 +61,7 @@
       "properties": {
         "requestedTokens": { "type": "integer", "exclusiveMinimum": 0 },
         "estimatedTokens": { "type": "integer", "minimum": 0 },
-        "estimator": { "const": "utf8-bytes/3-conservative-v1" }
+        "estimator": { "const": "cl100k_base@1.0.0" }
       }
     },
     "changedPaths": { "type": "array", "items": { "type": "string" } },

@@ -9,6 +9,7 @@ import {
   SCHEMA_VERSION,
 } from "../constants.js";
 import type { Capsule, Evidence, Sections, Snapshot } from "../contracts.js";
+import { PatrolError } from "../errors.js";
 import type { WorkspaceIdentity } from "../git-workspace.js";
 import { canonicalJson, digestOf } from "../hash.js";
 import type { ScanResult } from "../snapshot.js";
@@ -158,13 +159,11 @@ export function buildCapsule(input: EmitInput): Capsule {
   const allSymbols = scan.fileFacts.flatMap((f) => f.symbols);
   const rawSections = buildSections(focus, scan, analysis, allSymbols);
 
-  const evidenceTokens = evidence.reduce((sum, ev) => sum + ev.estimatedTokens, 0);
-  const remaining = tokenBudget - evidenceTokens;
-  const sections = fitOptionalInsights(rawSections, remaining);
-  const sectionTokens = estimateTokens(canonicalJson(sections));
-  const estimatedTokens = evidenceTokens + sectionTokens;
+  let fittedEvidence = evidence;
+  let fittedSections = fitOptionalInsights(rawSections, tokenBudget);
+  let fittedOmitted = omitted;
 
-  const body: Omit<Capsule, "capsuleDigest"> = {
+  const makeBody = (estimatedTokens: number): Omit<Capsule, "capsuleDigest"> => ({
     schemaVersion: SCHEMA_VERSION,
     protocolVersion: PROTOCOL_VERSION,
     capsuleId,
@@ -172,22 +171,66 @@ export function buildCapsule(input: EmitInput): Capsule {
     intent,
     focus,
     snapshot,
-    budget: {
-      requestedTokens: tokenBudget,
-      estimatedTokens,
-      estimator: ESTIMATOR,
-    },
+    budget: { requestedTokens: tokenBudget, estimatedTokens, estimator: ESTIMATOR },
     changedPaths,
     ...(includePaths !== undefined ? { includePaths } : {}),
     ...(excludePaths !== undefined ? { excludePaths } : {}),
-    evidence,
-    sections,
-    omitted,
+    evidence: fittedEvidence,
+    sections: fittedSections,
+    omitted: fittedOmitted,
     warnings,
+  });
+
+  const measure = (): {
+    body: Omit<Capsule, "capsuleDigest">;
+    capsule: Capsule;
+    tokens: number;
+  } => {
+    const measuredBody = makeBody(0);
+    const measuredCapsule = { ...measuredBody, capsuleDigest: digestOf(measuredBody) };
+    const measuredTokens = estimateTokens(`${canonicalJson(measuredCapsule)}\n`);
+    const estimatedTokens = measuredTokens + 64;
+    const body = makeBody(estimatedTokens);
+    const capsule = { ...body, capsuleDigest: digestOf(body) };
+    const finalTokens = estimateTokens(`${canonicalJson(capsule)}\n`);
+    return {
+      body,
+      capsule,
+      tokens: Math.max(estimatedTokens, finalTokens),
+    };
   };
 
-  return {
-    ...body,
-    capsuleDigest: digestOf(body),
-  };
+  while (true) {
+    const measured = measure();
+    if (measured.tokens <= tokenBudget) {
+      return measured.capsule;
+    }
+
+    const graph = fittedSections.graph;
+    const optional = graph
+      ? OPTIONAL_INSIGHT_DROP_ORDER.find((key) => key in graph)
+      : undefined;
+    if (optional && graph) {
+      const nextGraph = { ...graph };
+      delete nextGraph[optional];
+      fittedSections = { ...fittedSections, graph: nextGraph };
+      continue;
+    }
+    if (fittedEvidence.length > 0) {
+      const removed = fittedEvidence[fittedEvidence.length - 1];
+      if (!removed) {
+        throw new PatrolError(
+          "BUDGET_TOO_SMALL",
+          "token budget cannot contain a success envelope",
+        );
+      }
+      fittedEvidence = fittedEvidence.slice(0, -1);
+      fittedOmitted = [...fittedOmitted, { id: removed.id, reason: "token-budget" }];
+      continue;
+    }
+    throw new PatrolError(
+      "BUDGET_TOO_SMALL",
+      "requested token budget cannot contain a schema-valid success envelope",
+    );
+  }
 }

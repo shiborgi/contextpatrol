@@ -26,6 +26,12 @@ export function normalize(request: PackRequest): NormalizedRequest {
   if (focus.length === 0) {
     throw new PatrolError("REQUEST_INVALID", "focus is empty");
   }
+  if (request.tokenBudget < 64) {
+    throw new PatrolError(
+      "BUDGET_TOO_SMALL",
+      "token budget is below the minimum error envelope",
+    );
+  }
   const changedPaths: string[] = [];
   for (const raw of request.changedPaths ?? []) {
     const canonical = canonicalizePath(raw);

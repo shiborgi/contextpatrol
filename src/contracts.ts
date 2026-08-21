@@ -15,6 +15,7 @@ export const providerDescriptorSchema = z
   .object({
     provider: z.literal(PROVIDER),
     protocolVersion: z.literal(PROTOCOL_VERSION),
+    supportedProtocolVersions: z.tuple([z.literal(PROTOCOL_VERSION)]),
     features: z.literal("pack").array(),
     focusValues: focusSchema.array(),
     estimator: z.literal(ESTIMATOR),
@@ -32,11 +33,11 @@ export const providerDescriptorSchema = z
 
 export const packRequestSchema = z
   .object({
-    protocolVersion: z.literal(PROTOCOL_VERSION),
+    protocolVersion: z.literal(PROTOCOL_VERSION).optional(),
     workspace: z.string().min(1),
     intent: z.string().min(1),
     focus: focusSchema.array().min(1).max(FOCUS_VALUES.length),
-    tokenBudget: z.number().int().min(LIMITS.minBudget).max(LIMITS.maxBudget),
+    tokenBudget: z.number().int().min(1).max(LIMITS.maxBudget),
     changedPaths: z.array(z.string().min(1)).max(LIMITS.maxChangedPaths).optional(),
     gitRef: z.string().min(1).optional(),
     baseRef: z.string().min(1).optional(),
@@ -309,6 +310,8 @@ export const errorSchema = z
   .object({
     error: z.string(),
     message: z.string(),
+    requestedProtocolVersion: z.unknown().optional(),
+    supportedProtocolVersions: z.tuple([z.literal(PROTOCOL_VERSION)]).optional(),
   })
   .strict();
 
@@ -323,6 +326,7 @@ export function descriptor(): ProviderDescriptor {
   return {
     provider: PROVIDER,
     protocolVersion: PROTOCOL_VERSION,
+    supportedProtocolVersions: [PROTOCOL_VERSION],
     features: ["pack"],
     focusValues: [...FOCUS_VALUES],
     estimator: ESTIMATOR,

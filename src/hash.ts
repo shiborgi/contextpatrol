@@ -4,6 +4,10 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortDeep(value));
 }
 
+export function canonicalJsonLine(value: unknown): string {
+  return `${canonicalJson(value)}\n`;
+}
+
 function sortDeep(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortDeep);

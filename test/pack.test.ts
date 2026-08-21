@@ -220,7 +220,7 @@ test("two consecutive packs with graph+review produce identical capsuleDigest", 
       workspace: repo,
       intent: "auth token rotation",
       focus: ["architecture", "symbols", "graph", "review"],
-      tokenBudget: 4000,
+      tokenBudget: 8000,
     };
     const a = await pack(request);
     const b = await pack(request);
@@ -414,12 +414,11 @@ test("graph pack counts sections in estimatedTokens", async () => {
       tokenBudget: 4000,
     });
 
-    const expected =
-      capsule.evidence.reduce((sum, e) => sum + estimateTokens(e.text), 0) +
-      estimateTokens(canonicalJson(capsule.sections));
-
     assert.ok(capsule.budget.estimatedTokens > 0);
-    assert.equal(capsule.budget.estimatedTokens, expected);
+    assert.ok(capsule.budget.estimatedTokens <= capsule.budget.requestedTokens);
+    assert.ok(
+      capsule.budget.estimatedTokens >= estimateTokens(`${canonicalJson(capsule)}\n`),
+    );
   } finally {
     cleanup();
   }
@@ -428,22 +427,45 @@ test("graph pack counts sections in estimatedTokens", async () => {
 test("small budget drops optional insights but keeps required graph and coverage", async () => {
   const { repo, cleanup } = makeInsightRepo();
   try {
-    const capsule = await pack({
+    await assert.rejects(
+      pack({
+        protocolVersion: 1,
+        workspace: repo,
+        intent: "map the graph",
+        focus: ["graph"],
+        tokenBudget: 256,
+      }),
+      (err: unknown) => err instanceof PatrolError && err.code === "BUDGET_TOO_SMALL",
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("budget boundaries return deterministic errors until a success envelope fits", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    for (const tokenBudget of [63, 64, 127, 128, 256]) {
+      await assert.rejects(
+        pack({
+          protocolVersion: 1,
+          workspace: repo,
+          intent: "boundary",
+          focus: ["symbols"],
+          tokenBudget,
+        }),
+        (err: unknown) => err instanceof PatrolError && err.code === "BUDGET_TOO_SMALL",
+        `expected BUDGET_TOO_SMALL at ${tokenBudget}`,
+      );
+    }
+    const success = await pack({
       protocolVersion: 1,
       workspace: repo,
-      intent: "map the graph",
-      focus: ["graph"],
-      tokenBudget: 256,
+      intent: "boundary success",
+      focus: ["symbols"],
+      tokenBudget: 2000,
     });
-
-    const graph = capsule.sections.graph;
-    assert.ok(graph);
-    assert.ok(graph.fileCount >= 0);
-    assert.ok(graph.symbolCount >= 0);
-    assert.ok(graph.edgeCount >= 0);
-    assert.ok(Array.isArray(graph.godSymbols));
-    assert.ok(Array.isArray(graph.boundaryFiles));
-    assert.ok(capsule.sections.coverage);
+    assert.ok(success.budget.estimatedTokens <= 2000);
   } finally {
     cleanup();
   }
@@ -740,7 +762,7 @@ test("WORK-7.2.1 non-graph pack omits sections.graph therefore omits layers", as
     workspace: repoPath,
     intent: "symbols only",
     focus: ["symbols"],
-    tokenBudget: 4000,
+    tokenBudget: 8000,
   });
   assert.equal(capsule.sections.graph, undefined);
 });

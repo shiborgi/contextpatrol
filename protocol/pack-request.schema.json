@@ -4,9 +4,9 @@
   "title": "PackRequest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["protocolVersion", "workspace", "intent", "focus", "tokenBudget"],
+  "required": ["workspace", "intent", "focus", "tokenBudget"],
   "properties": {
-    "protocolVersion": { "const": 1 },
+    "protocolVersion": { "type": "integer", "const": 1 },
     "workspace": { "type": "string", "minLength": 1 },
     "intent": { "type": "string", "minLength": 1 },
     "focus": {
@@ -15,7 +15,7 @@
       "maxItems": 5,
       "items": { "enum": ["architecture", "symbols", "source", "graph", "review"] }
     },
-    "tokenBudget": { "type": "integer", "minimum": 256, "maximum": 32000 },
+    "tokenBudget": { "type": "integer", "minimum": 1, "maximum": 32000 },
     "changedPaths": {
       "type": "array",
       "maxItems": 200,

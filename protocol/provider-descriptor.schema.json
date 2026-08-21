@@ -4,22 +4,23 @@
   "title": "ProviderDescriptor",
   "type": "object",
   "additionalProperties": false,
-  "required": ["provider", "protocolVersion", "features", "focusValues", "estimator", "limits", "optionalRequestFields"],
+  "required": ["provider", "protocolVersion", "supportedProtocolVersions", "features", "focusValues", "estimator", "limits", "optionalRequestFields"],
   "properties": {
     "provider": { "const": "contextpatrol" },
     "protocolVersion": { "const": 1 },
+    "supportedProtocolVersions": { "type": "array", "const": [1] },
     "features": { "type": "array", "items": { "const": "pack" } },
     "focusValues": {
       "type": "array",
       "items": { "enum": ["architecture", "symbols", "source", "graph", "review"] }
     },
-    "estimator": { "const": "utf8-bytes/3-conservative-v1" },
+    "estimator": { "const": "cl100k_base@1.0.0" },
     "limits": {
       "type": "object",
       "additionalProperties": false,
       "required": ["minBudget", "maxBudget", "maxRequestBytes", "maxChangedPaths", "maxFileBytes", "maxFiles"],
       "properties": {
-        "minBudget": { "type": "integer" },
+        "minBudget": { "const": 128 },
         "maxBudget": { "type": "integer" },
         "maxRequestBytes": { "type": "integer" },
         "maxChangedPaths": { "type": "integer" },

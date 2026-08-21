@@ -75,10 +75,13 @@ digest.
 
 ## Budget
 
-The estimator is byte-conservative (`ceil(bytes / 3)`) and versioned as
-`utf8-bytes/3-conservative-v1`. Only `source` evidence is truncated; other
-evidence is either fully included or omitted with reason `token-budget`.
-Sections are structured metadata, not budget-packed content.
+The estimator is pinned as `cl100k_base@1.0.0` and measures the complete
+canonical UTF-8 response envelope, including metadata, sections, evidence,
+omissions, warnings and the capsule digest, with a fixed conservative margin
+for self-referential token and digest fields. Optional evidence and graph
+insights are reduced in deterministic order; if the required envelope cannot
+fit, the operation returns `BUDGET_TOO_SMALL` rather than an over-budget
+success. A success never exceeds `requestedTokens`.
 
 ## Source-change detection
 

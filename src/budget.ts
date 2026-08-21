@@ -1,6 +1,9 @@
+import { getEncoding } from "js-tiktoken";
+
+const TOKENIZER = getEncoding("cl100k_base");
+
 export function estimateTokens(text: string): number {
-  const bytes = Buffer.byteLength(text, "utf8");
-  return Math.max(1, Math.ceil(bytes / 3));
+  return Math.max(1, TOKENIZER.encode(text).length);
 }
 
 export interface BudgetItem {

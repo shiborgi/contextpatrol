@@ -8,5 +8,7 @@
   "properties": {
     "error": { "type": "string" },
     "message": { "type": "string" }
+    ,"requestedProtocolVersion": {},
+    "supportedProtocolVersions": { "type": "array", "const": [1] }
   }
 }

@@ -39,7 +39,7 @@ version — no fallback, no heuristics.
 
 - `protocolVersion`: `1`
 - `focus`: `architecture`, `symbols`, `source`, `graph`, `review`
-- estimator: `utf8-bytes/3-conservative-v1`
+- estimator: `cl100k_base@1.0.0`
 
 Contract schemas and fixtures live in `protocol/`.
 
@@ -161,7 +161,8 @@ state into the analyzed repository.
 - never executes analyzed code;
 - TypeScript/JavaScript get AST extraction; Markdown and config files are
   documents only;
-- hard token budget, deterministic selection and ordering;
+- hard token budget over the complete canonical response envelope; requests
+  that cannot fit return deterministic `BUDGET_TOO_SMALL` errors;
 - denylist, redaction, symlink and path-traversal protection;
 - detects source change during the operation (`SOURCE_CHANGED`);
 - stdout carries only the result; stderr carries only a JSON error.

@@ -1,7 +1,7 @@
 export const PROVIDER = "contextpatrol" as const;
 export const PROTOCOL_VERSION = 1 as const;
 export const SCHEMA_VERSION = 1 as const;
-export const ESTIMATOR = "utf8-bytes/3-conservative-v1" as const;
+export const ESTIMATOR = "cl100k_base@1.0.0" as const;
 export const EXTRACTOR_VERSION = "typescript-ast-v2" as const;
 export const POLICY_VERSION = 1 as const;
 
@@ -15,7 +15,7 @@ export const FOCUS_VALUES = [
 export type Focus = (typeof FOCUS_VALUES)[number];
 
 export const LIMITS = {
-  minBudget: 256,
+  minBudget: 128,
   maxBudget: 32_000,
   maxRequestBytes: 1_048_576,
   maxChangedPaths: 200,
