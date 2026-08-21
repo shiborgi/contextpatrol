@@ -66,7 +66,7 @@ writeFileSync(
     workspace: repo,
     intent: "auth",
     focus: ["symbols"],
-    tokenBudget: 800,
+    tokenBudget: 2000,
   }),
 );
 const capsule = JSON.parse(run(bin, ["pack", "--request", requestFile], installDir));

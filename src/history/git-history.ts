@@ -11,11 +11,19 @@ export function mineHistory(
   root: string,
   denylist: readonly string[],
   maxCommits = 2000,
+  endpoint = "HEAD",
 ): HistoryResult {
   let output = "";
   try {
     output = runGit(
-      ["log", "--numstat", "--no-renames", `-n${maxCommits}`, "--pretty=format:COMMIT"],
+      [
+        "log",
+        "--numstat",
+        "--no-renames",
+        `-n${maxCommits}`,
+        "--pretty=format:COMMIT",
+        endpoint,
+      ],
       root,
     ).toString("utf8");
   } catch {

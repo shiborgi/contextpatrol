@@ -39,14 +39,10 @@ export function runGit(
     maxBuffer,
   });
   if (result.error) {
-    throw new PatrolError("WORKSPACE_INVALID", `git failed: ${result.error.message}`);
+    throw new PatrolError("WORKSPACE_INVALID", "git operation failed");
   }
   if (result.status !== 0) {
-    const stderr = result.stderr?.toString("utf8").trim() ?? "";
-    throw new PatrolError(
-      "WORKSPACE_INVALID",
-      `git ${args.join(" ")} failed: ${stderr}`,
-    );
+    throw new PatrolError("WORKSPACE_INVALID", "git operation failed");
   }
   return result.stdout;
 }

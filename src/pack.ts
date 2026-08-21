@@ -1,4 +1,5 @@
 import { analyze } from "./analysis/analysis.js";
+import { buildAnalysisTarget } from "./analysis-target.js";
 import type { Capsule, PackRequest } from "./contracts.js";
 import { resolveRef, resolveWorkspace, runGit } from "./git-workspace.js";
 import { compareBytewise } from "./hash.js";
@@ -6,7 +7,7 @@ import { analyzeWorkspace } from "./pipeline/analyze.js";
 import { buildCandidates } from "./pipeline/candidates.js";
 import { buildCapsule } from "./pipeline/emit.js";
 import { normalize } from "./pipeline/normalize.js";
-import { loadProjectOverlay } from "./pipeline/overlay.js";
+import { loadProjectOverlay, loadProjectOverlayFromRef } from "./pipeline/overlay.js";
 import { buildDenylist, filterAllowedPaths } from "./pipeline/policy.js";
 import { verifyUnchanged } from "./pipeline/verify.js";
 import { canonicalizePath } from "./security.js";
@@ -24,9 +25,16 @@ export async function pack(
 ): Promise<Capsule> {
   const normalized = normalize(request);
 
-  // WAVE-6.4: load read-only project overlay and merge (request wins)
+  // Resolve the target commit before reading any overlay so historical packs
+  // never consult the current filesystem.
   const identityForOverlay = resolveWorkspace(normalized.workspace);
-  const overlay = loadProjectOverlay(identityForOverlay.root);
+  const targetCommit = normalized.gitRef
+    ? resolveRef(identityForOverlay.root, normalized.gitRef)
+    : undefined;
+  const overlay =
+    targetCommit !== undefined
+      ? loadProjectOverlayFromRef(identityForOverlay.root, targetCommit)
+      : loadProjectOverlay(identityForOverlay.root);
 
   let finalIncludePaths = normalized.includePaths;
   if (!finalIncludePaths || finalIncludePaths.length === 0) {
@@ -98,7 +106,23 @@ export async function pack(
     resolvedBase && resolvedHead && normalized.changedPaths.length === 0
       ? { left: resolvedBase, right: resolvedHead }
       : undefined;
-  const analysis = analyze(scan, identity.root, denylist, changedPaths, diffRange);
+  const analysisTarget = buildAnalysisTarget({
+    identity,
+    scan,
+    commit: targetCommit,
+    base: resolvedBase,
+    includePaths: effectiveIncludePaths,
+    excludePaths: effectiveExcludePaths,
+    overlay,
+  });
+  const analysis = analyze(
+    scan,
+    identity.root,
+    denylist,
+    changedPaths,
+    diffRange,
+    targetCommit,
+  );
 
   const candidates = buildCandidates(
     normalized.focus,
@@ -134,5 +158,6 @@ export async function pack(
     baseRef: normalized.baseRef,
     includePaths: effectiveIncludePaths,
     excludePaths: effectiveExcludePaths,
+    analysisTarget,
   });
 }

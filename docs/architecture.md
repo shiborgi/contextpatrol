@@ -6,6 +6,7 @@ daemon. One request maps to one capsule.
 ```
 request JSON (strict)
   -> workspace resolution (Git root, HEAD, identity)
+  -> content-addressed AnalysisTarget (commit, scope, configs, overlay, history)
   -> file discovery (tracked + untracked non-ignored, minus denylist)
   -> safe bounded read
   -> TS/JS AST extraction (symbol, import, call, rationale facts; isTest)
@@ -88,3 +89,7 @@ success. A success never exceeds `requestedTokens`.
 Before emitting the capsule, the dirty entry set is re-read from Git and
 compared with the set observed at discovery. Any difference fails the
 operation with `SOURCE_CHANGED`; retries are the caller's responsibility.
+Historical targets bind source, overlay, package/configuration metadata,
+history and diff inputs to resolved Git commits. Current-worktree dirty blobs
+are represented in the target manifest with content digests, so no mutable
+file is silently mixed into a commit-based analysis.

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { LIMITS } from "../constants.js";
 import { PatrolError } from "../errors.js";
+import { readBlob } from "../git-workspace.js";
 import { compareBytewise } from "../hash.js";
 import { canonicalizePath } from "../security.js";
 
@@ -29,9 +30,26 @@ export function loadProjectOverlay(gitRoot: string): ProjectOverlay | null {
     if (err.code === "ENOENT") {
       return null;
     }
-    throw new PatrolError("REQUEST_INVALID", `failed to read overlay: ${err.message}`);
+    throw new PatrolError("REQUEST_INVALID", "failed to read overlay");
   }
 
+  return parseOverlayText(raw);
+}
+
+export function loadProjectOverlayFromRef(
+  root: string,
+  commit: string,
+): ProjectOverlay | null {
+  try {
+    return parseOverlayText(
+      readBlob(root, commit, "contextpatrol.project.json").toString("utf8"),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function parseOverlayText(raw: string): ProjectOverlay {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

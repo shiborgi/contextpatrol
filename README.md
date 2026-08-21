@@ -150,6 +150,12 @@ the analyzed repository. It is never written by `pack`.
 
 `pack` never writes to the analyzed repository.
 
+Every capsule carries an `analysisTarget` manifest that pins the resolved
+commit, scope, source and policy digests, configuration and overlay inputs,
+history endpoint, truncation state, and a final `manifestDigest`. Historical
+`gitRef` requests read overlays and source metadata from Git objects rather than
+the current filesystem.
+
 ContextPatrol has no integration with Understand-Anything. It remains a
 local-first pack provider: callers may use its capsules as context, but the
 pack command neither invokes external understanding services nor writes their

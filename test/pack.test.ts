@@ -175,7 +175,7 @@ test("pack is deterministic for identical input", async () => {
       workspace: repo,
       intent: "auth",
       focus: ["symbols"],
-      tokenBudget: 800,
+      tokenBudget: 2000,
     };
     const a = await pack(request);
     const b = await pack(request);
@@ -270,6 +270,11 @@ test("dirty diff maps hunks to symbols and computes risk", async () => {
     assert.ok(riskEntry);
     assert.ok(riskEntry.factors.length > 0);
     assert.equal(capsule.sections.coverage.historyWindow, 2000);
+    const target = capsule.analysisTarget as {
+      dirtyBlobs: Array<{ path: string; digest: string }>;
+    };
+    assert.ok(target.dirtyBlobs.some((blob) => blob.path === "src/auth.ts"));
+    assert.ok(target.dirtyBlobs.find((blob) => blob.path === "src/auth.ts")?.digest);
   } finally {
     cleanup();
   }
@@ -572,7 +577,7 @@ test("self-repo review testGaps exclude bin and scripts", async () => {
     workspace: process.cwd(),
     intent: "map the graph",
     focus: ["review"],
-    tokenBudget: 4000,
+    tokenBudget: 8000,
   });
 
   const gaps = capsule.sections.review?.testGaps ?? [];
@@ -992,6 +997,54 @@ test("gitRef targets a prior commit read-only and leaves worktree untouched", as
       gitRef: "HEAD",
     });
     assert.equal(capHead.snapshot.head, sha2);
+  } finally {
+    cleanup();
+  }
+});
+
+test("historical target pins the overlay and exposes a manifest digest", async () => {
+  const { repo, cleanup } = makeRepo();
+  try {
+    writeFileSync(
+      join(repo, "contextpatrol.project.json"),
+      JSON.stringify({ includePaths: ["src"] }, null, 2),
+    );
+    git(["add", "-A"], repo);
+    git(["commit", "-m", "overlay", "--no-gpg-sign"], repo);
+    const historical = git(["rev-parse", "HEAD"], repo).trim();
+
+    writeFileSync(
+      join(repo, "contextpatrol.project.json"),
+      JSON.stringify({ excludePaths: ["src"] }, null, 2),
+    );
+
+    const first = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "historical overlay",
+      focus: ["symbols"],
+      tokenBudget: 4000,
+      gitRef: historical,
+    });
+    const second = await pack({
+      protocolVersion: 1,
+      workspace: repo,
+      intent: "historical overlay",
+      focus: ["symbols"],
+      tokenBudget: 4000,
+      gitRef: historical,
+    });
+    assert.equal(first.capsuleDigest, second.capsuleDigest);
+    const target = first.analysisTarget as {
+      manifestDigest: string;
+      overlay: {
+        descriptor: { includePaths?: string[]; excludePaths?: string[] };
+      } | null;
+    };
+    const secondTarget = second.analysisTarget as typeof target;
+    assert.equal(target.manifestDigest, secondTarget.manifestDigest);
+    assert.deepEqual(target.overlay?.descriptor.includePaths, ["src"]);
+    assert.equal(target.overlay?.descriptor.excludePaths, undefined);
   } finally {
     cleanup();
   }

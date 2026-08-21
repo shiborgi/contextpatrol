@@ -280,6 +280,7 @@ export const capsuleSchema = z
     intent: z.string(),
     focus: focusSchema.array(),
     snapshot: snapshotSchema,
+    analysisTarget: z.record(z.unknown()).optional(),
     budget: z
       .object({
         requestedTokens: z.number().int().positive(),

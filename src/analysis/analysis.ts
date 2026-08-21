@@ -31,6 +31,7 @@ export function analyze(
   denylist: readonly string[],
   changedPaths: string[],
   diffRange?: { left: string; right: string },
+  historyRef?: string,
 ): Analysis {
   const graph = buildCodeGraph(scan.fileFacts, scan.eligiblePaths);
   const exportedNames = new Set(
@@ -46,7 +47,7 @@ export function analyze(
     changedPaths,
     diffRange,
   );
-  const history = mineHistory(root, denylist, HISTORY_WINDOW);
+  const history = mineHistory(root, denylist, HISTORY_WINDOW, historyRef);
   const communities = detectCommunities(graph);
   const deadCode = detectDeadCode(graph, scan.fileFacts);
   const surprises = detectSurprises(graph, communities, godSymbols, scan.fileFacts);

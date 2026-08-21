@@ -1,5 +1,6 @@
 import type { Analysis } from "../analysis/analysis.js";
 import { buildSections } from "../analysis/sections.js";
+import type { AnalysisTarget } from "../analysis-target.js";
 import { clipText, estimateTokens, packBudget } from "../budget.js";
 import {
   ESTIMATOR,
@@ -77,6 +78,7 @@ export interface EmitInput {
   baseRef?: string;
   includePaths?: string[];
   excludePaths?: string[];
+  analysisTarget?: AnalysisTarget;
 }
 
 export function buildCapsule(input: EmitInput): Capsule {
@@ -154,7 +156,11 @@ export function buildCapsule(input: EmitInput): Capsule {
     ...(excludePaths !== undefined ? { excludePaths } : {}),
   });
 
-  const capsuleId = `ctx-${digestOf({ requestDigest, snapshotDigest: snapshot.snapshotDigest }).slice(0, 16)}`;
+  const capsuleId = `ctx-${digestOf({
+    requestDigest,
+    snapshotDigest: snapshot.snapshotDigest,
+    manifestDigest: input.analysisTarget?.manifestDigest,
+  }).slice(0, 16)}`;
 
   const allSymbols = scan.fileFacts.flatMap((f) => f.symbols);
   const rawSections = buildSections(focus, scan, analysis, allSymbols);
@@ -171,6 +177,9 @@ export function buildCapsule(input: EmitInput): Capsule {
     intent,
     focus,
     snapshot,
+    ...(input.analysisTarget !== undefined
+      ? { analysisTarget: input.analysisTarget as unknown as Record<string, unknown> }
+      : {}),
     budget: { requestedTokens: tokenBudget, estimatedTokens, estimator: ESTIMATOR },
     changedPaths,
     ...(includePaths !== undefined ? { includePaths } : {}),

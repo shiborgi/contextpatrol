@@ -54,6 +54,10 @@
         "policyDigest": { "type": "string" }
       }
     },
+    "analysisTarget": {
+      "type": "object",
+      "additionalProperties": true
+    },
     "budget": {
       "type": "object",
       "additionalProperties": false,
