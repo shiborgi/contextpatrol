@@ -11,6 +11,7 @@ import {
 import { validateQueryRequest } from "./contracts.js";
 import { ContextPatrolError } from "./errors.js";
 import { canonicalJson } from "./json.js";
+import { type RunContext, stderrLogger } from "./run-context.js";
 
 const VERSION = readVersion();
 const HELP = `ContextPatrol ${VERSION}
@@ -20,6 +21,8 @@ Usage:
   contextpatrol query --input FILE|-
   contextpatrol --help
   contextpatrol --version
+
+Global: --verbose, --quiet, --help, --version
 `;
 
 function readVersion(): string {
@@ -47,12 +50,22 @@ export async function runCli(
   argv: string[],
   stdin: () => Promise<Buffer>,
 ): Promise<CliResult> {
-  const args = argv.slice(2);
+  const { verbose, quiet, args } = parseGlobals(argv.slice(2));
   if (args.length === 0 || args.includes("--help"))
     return { exitCode: 0, stdout: HELP, stderr: "" };
   if (args.includes("--version"))
     return { exitCode: 0, stdout: `${VERSION}\n`, stderr: "" };
+  if (verbose && quiet)
+    return failure(
+      new ContextPatrolError("USAGE", "--verbose and --quiet cannot be combined", 2),
+    );
+  const ctx: RunContext = {
+    log: stderrLogger(verbose ? "debug" : quiet ? "silent" : "info"),
+  };
   if (args[0] === "info") {
+    if (args.length !== 1)
+      return failure(new ContextPatrolError("USAGE", "expected info", 2));
+    ctx.log.debug("info");
     return success({
       schemaVersion: SCHEMA_VERSION,
       provider: { name: PROVIDER_NAME, version: PROVIDER_VERSION },
@@ -67,6 +80,7 @@ export async function runCli(
   }
   if (args[0] !== "query" || args[1] !== "--input" || !args[2] || args.length !== 3)
     return failure(new ContextPatrolError("USAGE", "expected query --input FILE|-", 2));
+  ctx.log.debug("query");
   try {
     const input = args[2] === "-" ? await stdin() : readFileSync(args[2]);
     if (input.length > LIMITS.requestBytes)
@@ -84,6 +98,22 @@ export async function runCli(
         : new ContextPatrolError("REQUEST_INVALID", "request is not valid JSON", 2),
     );
   }
+}
+
+function parseGlobals(tokens: string[]): {
+  verbose: boolean;
+  quiet: boolean;
+  args: string[];
+} {
+  let verbose = false;
+  let quiet = false;
+  const args: string[] = [];
+  for (const token of tokens) {
+    if (token === "--verbose") verbose = true;
+    else if (token === "--quiet") quiet = true;
+    else args.push(token);
+  }
+  return { verbose, quiet, args };
 }
 
 function success(value: unknown): CliResult {
