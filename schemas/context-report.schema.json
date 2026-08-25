@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiborgi.dev/contextpatrol/context-report.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "provider",
+    "requestDigest",
+    "reportDigest",
+    "target",
+    "budget",
+    "summary",
+    "files",
+    "symbols",
+    "relations",
+    "changes",
+    "tests",
+    "snippets",
+    "coverage"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "contextpatrol" },
+        "version": { "const": "1.0.0" }
+      }
+    },
+    "requestDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "reportDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "commit", "dirtyDigest", "contentDigest"],
+      "properties": {
+        "kind": { "enum": ["working-tree", "commit"] },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+        "dirtyDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "contentDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxOutputBytes", "outputBytes", "limited"],
+      "properties": {
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65536
+        },
+        "outputBytes": { "type": "integer", "minimum": 1 },
+        "limited": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["query", "filesConsidered", "filesSelected"],
+      "properties": {
+        "query": { "type": "string" },
+        "filesConsidered": { "type": "integer", "minimum": 0 },
+        "filesSelected": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "files": { "type": "array" },
+    "symbols": { "type": "array" },
+    "relations": { "type": "array" },
+    "changes": { "type": "array" },
+    "tests": { "type": "object" },
+    "snippets": { "type": "array" },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligibleFiles",
+        "analyzedFiles",
+        "skippedBinary",
+        "skippedOversized",
+        "omittedFiles",
+        "omittedSymbols",
+        "omittedRelations",
+        "omittedSnippets",
+        "unresolvedRelations"
+      ],
+      "properties": {
+        "eligibleFiles": { "type": "integer", "minimum": 0 },
+        "analyzedFiles": { "type": "integer", "minimum": 0 },
+        "skippedBinary": { "type": "integer", "minimum": 0 },
+        "skippedOversized": { "type": "integer", "minimum": 0 },
+        "omittedFiles": { "type": "integer", "minimum": 0 },
+        "omittedSymbols": { "type": "integer", "minimum": 0 },
+        "omittedRelations": { "type": "integer", "minimum": 0 },
+        "omittedSnippets": { "type": "integer", "minimum": 0 },
+        "unresolvedRelations": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

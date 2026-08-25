@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shiborgi.dev/contextpatrol/query-request.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspace",
+    "query",
+    "facets",
+    "maxOutputBytes",
+    "target"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "workspace": { "type": "string", "minLength": 1 },
+    "query": { "type": "string", "minLength": 1 },
+    "facets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "structure",
+          "symbols",
+          "relations",
+          "source",
+          "changes",
+          "tests"
+        ]
+      }
+    },
+    "maxOutputBytes": { "type": "integer", "minimum": 1024, "maximum": 65536 },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "working-tree" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "oid"],
+          "properties": {
+            "kind": { "const": "commit" },
+            "oid": {
+              "type": "string",
+              "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+            }
+          }
+        }
+      ]
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["oid"],
+      "properties": {
+        "oid": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        }
+      }
+    },
+    "includePaths": {
+      "type": "array",
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "excludePaths": {
+      "type": "array",
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
