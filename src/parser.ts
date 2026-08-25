@@ -1,8 +1,8 @@
 import { createRequire } from "node:module";
-import { Language, Parser, type Node } from "web-tree-sitter";
+import { Language, type Node, Parser } from "web-tree-sitter";
+import type { CachedFacts } from "./index-store.js";
 import { compareText } from "./json.js";
 import type { SourceFile } from "./types.js";
-import type { CachedFacts } from "./index-store.js";
 
 const require = createRequire(import.meta.url);
 const LANGUAGE_ASSETS: Record<string, string> = {
@@ -71,12 +71,9 @@ function nodeName(node: Node, content: string): string | undefined {
   if (named) return content.slice(named.startIndex, named.endIndex);
   for (const child of node.namedChildren) {
     if (
-      [
-        "identifier",
-        "type_identifier",
-        "property_identifier",
-        "constant",
-      ].includes(child.type)
+      ["identifier", "type_identifier", "property_identifier", "constant"].includes(
+        child.type,
+      )
     )
       return content.slice(child.startIndex, child.endIndex);
   }
@@ -115,9 +112,9 @@ export async function parseFile(file: SourceFile): Promise<CachedFacts> {
           language: file.language,
           symbols: [],
           imports,
-          terms: [
-            ...new Set([...terms(file.path), ...imports.flatMap(terms)]),
-          ].sort(compareText),
+          terms: [...new Set([...terms(file.path), ...imports.flatMap(terms)])].sort(
+            compareText,
+          ),
         };
       const visit = (node: Node): void => {
         if (DECLARATIONS.has(node.type)) {
@@ -149,11 +146,7 @@ export async function parseFile(file: SourceFile): Promise<CachedFacts> {
     symbols: found.sort((left, right) => compareText(left.id, right.id)),
     imports,
     terms: [
-      ...new Set([
-        ...terms(file.path),
-        ...identifiers,
-        ...imports.flatMap(terms),
-      ]),
+      ...new Set([...terms(file.path), ...identifiers, ...imports.flatMap(terms)]),
     ].sort(compareText),
   };
 }

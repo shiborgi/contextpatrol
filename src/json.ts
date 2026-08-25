@@ -25,8 +25,7 @@ export function digest(value: unknown): string {
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    return false;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value) as unknown;
   return prototype === Object.prototype || prototype === null;
 }
@@ -40,9 +39,7 @@ export function exactKeys(
   const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
   const missing = required.filter((key) => !Object.hasOwn(value, key));
   if (unknown.length > 0)
-    throw new Error(
-      `${label} has unknown properties: ${unknown.sort().join(", ")}`,
-    );
+    throw new Error(`${label} has unknown properties: ${unknown.sort().join(", ")}`);
   if (missing.length > 0)
     throw new Error(`${label} is missing properties: ${missing.join(", ")}`);
 }

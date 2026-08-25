@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { queryContext } from "./analyze.js";
 import {
   LIMITS,
   PROVIDER_NAME,
@@ -10,7 +11,6 @@ import {
 import { validateQueryRequest } from "./contracts.js";
 import { ContextPatrolError } from "./errors.js";
 import { canonicalJson } from "./json.js";
-import { queryContext } from "./analyze.js";
 
 const VERSION = readVersion();
 const HELP = `ContextPatrol ${VERSION}
@@ -27,12 +27,7 @@ function readVersion(): string {
     return (
       JSON.parse(
         readFileSync(
-          join(
-            dirname(fileURLToPath(import.meta.url)),
-            "..",
-            "..",
-            "package.json",
-          ),
+          join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"),
           "utf8",
         ),
       ) as { version: string }
@@ -61,33 +56,17 @@ export async function runCli(
     return success({
       schemaVersion: SCHEMA_VERSION,
       provider: { name: PROVIDER_NAME, version: PROVIDER_VERSION },
-      facets: [
-        "structure",
-        "symbols",
-        "relations",
-        "source",
-        "changes",
-        "tests",
-      ],
+      facets: ["structure", "symbols", "relations", "source", "changes", "tests"],
       limits: LIMITS,
       query: {
         argv: ["query", "--input", "FILE|-"],
-        requestSchema:
-          "https://shiborgi.dev/contextpatrol/query-request.schema.json",
-        reportSchema:
-          "https://shiborgi.dev/contextpatrol/context-report.schema.json",
+        requestSchema: "https://shiborgi.dev/contextpatrol/query-request.schema.json",
+        reportSchema: "https://shiborgi.dev/contextpatrol/context-report.schema.json",
       },
     });
   }
-  if (
-    args[0] !== "query" ||
-    args[1] !== "--input" ||
-    !args[2] ||
-    args.length !== 3
-  )
-    return failure(
-      new ContextPatrolError("USAGE", "expected query --input FILE|-", 2),
-    );
+  if (args[0] !== "query" || args[1] !== "--input" || !args[2] || args.length !== 3)
+    return failure(new ContextPatrolError("USAGE", "expected query --input FILE|-", 2));
   try {
     const input = args[2] === "-" ? await stdin() : readFileSync(args[2]);
     if (input.length > LIMITS.requestBytes)
@@ -102,11 +81,7 @@ export async function runCli(
     return failure(
       error instanceof ContextPatrolError
         ? error
-        : new ContextPatrolError(
-            "REQUEST_INVALID",
-            "request is not valid JSON",
-            2,
-          ),
+        : new ContextPatrolError("REQUEST_INVALID", "request is not valid JSON", 2),
     );
   }
 }

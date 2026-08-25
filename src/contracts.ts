@@ -14,29 +14,22 @@ function text(value: unknown, label: string): string {
 
 function oid(value: unknown, label: string): string {
   const parsed = text(value, label);
-  if (!OID.test(parsed))
-    throw new Error(`${label} must be a full lowercase object id`);
+  if (!OID.test(parsed)) throw new Error(`${label} must be a full lowercase object id`);
   return parsed;
 }
 
 function paths(value: unknown, label: string): string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.length > LIMITS.maxPaths)
-    throw new Error(
-      `${label} must be an array with at most ${LIMITS.maxPaths} paths`,
-    );
+    throw new Error(`${label} must be an array with at most ${LIMITS.maxPaths} paths`);
   const parsed = value.map((item, index) => {
     const itemText = text(item, `${label}.${index}`);
     if (
       path.isAbsolute(itemText) ||
       itemText.includes("\\") ||
-      itemText
-        .split("/")
-        .some((part) => part === "" || part === "." || part === "..")
+      itemText.split("/").some((part) => part === "" || part === "." || part === "..")
     ) {
-      throw new Error(
-        `${label}.${index} must be a safe repository-relative path`,
-      );
+      throw new Error(`${label}.${index} must be a safe repository-relative path`);
     }
     return itemText;
   });
@@ -61,14 +54,7 @@ export function validateQueryRequest(value: unknown): QueryRequest {
         "includePaths",
         "excludePaths",
       ],
-      [
-        "schemaVersion",
-        "workspace",
-        "query",
-        "facets",
-        "maxOutputBytes",
-        "target",
-      ],
+      ["schemaVersion", "workspace", "query", "facets", "maxOutputBytes", "target"],
       "query request",
     );
     if (value.schemaVersion !== SCHEMA_VERSION)
@@ -78,9 +64,7 @@ export function validateQueryRequest(value: unknown): QueryRequest {
       throw new Error("query request.workspace must be absolute");
     const query = text(value.query, "query request.query");
     if (Buffer.byteLength(query, "utf8") > LIMITS.maxQueryBytes)
-      throw new Error(
-        `query request.query exceeds ${LIMITS.maxQueryBytes} bytes`,
-      );
+      throw new Error(`query request.query exceeds ${LIMITS.maxQueryBytes} bytes`);
     if (!Array.isArray(value.facets) || value.facets.length === 0)
       throw new Error("query request.facets must be a non-empty array");
     const facets = value.facets.map((facet) => {
@@ -108,17 +92,10 @@ export function validateQueryRequest(value: unknown): QueryRequest {
     if (value.target.kind === "working-tree") {
       exactKeys(value.target, ["kind"], ["kind"], "query request.target");
     } else if (value.target.kind === "commit") {
-      exactKeys(
-        value.target,
-        ["kind", "oid"],
-        ["kind", "oid"],
-        "query request.target",
-      );
+      exactKeys(value.target, ["kind", "oid"], ["kind", "oid"], "query request.target");
       oid(value.target.oid, "query request.target.oid");
     } else {
-      throw new Error(
-        "query request.target.kind must be working-tree or commit",
-      );
+      throw new Error("query request.target.kind must be working-tree or commit");
     }
     let baseline: { oid: string } | undefined;
     if (value.baseline !== undefined) {
@@ -127,14 +104,8 @@ export function validateQueryRequest(value: unknown): QueryRequest {
       exactKeys(value.baseline, ["oid"], ["oid"], "query request.baseline");
       baseline = { oid: oid(value.baseline.oid, "query request.baseline.oid") };
     }
-    const includePaths = paths(
-      value.includePaths,
-      "query request.includePaths",
-    );
-    const excludePaths = paths(
-      value.excludePaths,
-      "query request.excludePaths",
-    );
+    const includePaths = paths(value.includePaths, "query request.includePaths");
+    const excludePaths = paths(value.excludePaths, "query request.excludePaths");
     return {
       schemaVersion: 1,
       workspace,

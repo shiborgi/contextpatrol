@@ -1,19 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { SOURCE_EXTENSIONS, LIMITS } from "./constants.js";
+import { LIMITS, SOURCE_EXTENSIONS } from "./constants.js";
 import { ContextPatrolError } from "./errors.js";
 import { compareText, digest } from "./json.js";
 import type { QueryRequest, SourceFile } from "./types.js";
 
-const DENIED_PARTS = new Set([
-  ".git",
-  ".hg",
-  ".svn",
-  "dist",
-  "node_modules",
-  "vendor",
-]);
+const DENIED_PARTS = new Set([".git", ".hg", ".svn", "dist", "node_modules", "vendor"]);
 const DENIED_NAMES = [
   /^\.env(?:\.|$)/,
   /\.pem$/i,
@@ -41,28 +34,20 @@ export interface LoadedSource {
   eligibleFiles: number;
 }
 
-function git(
-  root: string,
-  args: string[],
-  encoding: "utf8" | "buffer" = "utf8",
-) {
+function git(root: string, args: string[], encoding: "utf8" | "buffer" = "utf8") {
   try {
-    return execFileSync(
-      "git",
-      ["-c", "core.quotepath=false", "-C", root, ...args],
-      {
-        encoding: encoding === "buffer" ? "buffer" : "utf8",
-        maxBuffer: 32 * 1024 * 1024,
-        env: {
-          PATH: process.env.PATH ?? "",
-          HOME: process.env.HOME ?? "",
-          GIT_CONFIG_NOSYSTEM: "1",
-          GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
-          GIT_NO_LAZY_FETCH: "1",
-          LC_ALL: "C",
-        },
+    return execFileSync("git", ["-c", "core.quotepath=false", "-C", root, ...args], {
+      encoding: encoding === "buffer" ? "buffer" : "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+      env: {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? "",
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+        GIT_NO_LAZY_FETCH: "1",
+        LC_ALL: "C",
       },
-    );
+    });
   } catch {
     throw new ContextPatrolError(
       "SOURCE_INVALID",
@@ -105,24 +90,17 @@ function assertSafeFile(root: string, relative: string): string {
   for (const part of relative.split("/")) {
     current = path.join(current, part);
     if (lstatSync(current).isSymbolicLink())
-      throw new ContextPatrolError(
-        "SOURCE_INVALID",
-        "symbolic links are not analyzed",
-      );
+      throw new ContextPatrolError("SOURCE_INVALID", "symbolic links are not analyzed");
   }
   const resolved = realpathSync(absolute);
   if (!resolved.startsWith(`${root}${path.sep}`))
-    throw new ContextPatrolError(
-      "SOURCE_INVALID",
-      "source path escapes the workspace",
-    );
+    throw new ContextPatrolError("SOURCE_INVALID", "source path escapes the workspace");
   return resolved;
 }
 
 function redact(text: string): string {
   let output = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-  for (const pattern of REDACTIONS)
-    output = output.replace(pattern, "$1[REDACTED]");
+  for (const pattern of REDACTIONS) output = output.replace(pattern, "$1[REDACTED]");
   return output;
 }
 
@@ -155,15 +133,9 @@ function readTarget(
 } {
   const listed =
     target.kind === "working-tree"
-      ? nulList(
-          git(root, ["ls-files", "-co", "--exclude-standard", "-z"], "buffer"),
-        )
+      ? nulList(git(root, ["ls-files", "-co", "--exclude-standard", "-z"], "buffer"))
       : nulList(
-          git(
-            root,
-            ["ls-tree", "-r", "-z", "--name-only", target.oid],
-            "buffer",
-          ),
+          git(root, ["ls-tree", "-r", "-z", "--name-only", target.oid], "buffer"),
         );
   const eligible = listed.filter((file) => allowedPath(file, request));
   if (eligible.length > LIMITS.maxFiles)
@@ -175,8 +147,7 @@ function readTarget(
   let skippedBinary = 0;
   let skippedOversized = 0;
   for (const file of eligible) {
-    if (target.kind === "working-tree" && !existsSync(path.join(root, file)))
-      continue;
+    if (target.kind === "working-tree" && !existsSync(path.join(root, file))) continue;
     const content =
       target.kind === "working-tree"
         ? readFileSync(assertSafeFile(root, file))
@@ -203,9 +174,7 @@ function compareSources(
 ): Array<{ path: string; status: "added" | "modified" | "deleted" }> {
   const before = new Map(baseline.map((file) => [file.path, file.hash]));
   const after = new Map(target.map((file) => [file.path, file.hash]));
-  const paths = [...new Set([...before.keys(), ...after.keys()])].sort(
-    compareText,
-  );
+  const paths = [...new Set([...before.keys(), ...after.keys()])].sort(compareText);
   const changes: Array<{
     path: string;
     status: "added" | "modified" | "deleted";
@@ -225,16 +194,11 @@ export function loadSource(request: QueryRequest): LoadedSource {
     (git(root, ["rev-parse", "--show-toplevel"]) as string).trim(),
   );
   if (top !== root)
-    throw new ContextPatrolError(
-      "SOURCE_INVALID",
-      "workspace must be the Git root",
-    );
+    throw new ContextPatrolError("SOURCE_INVALID", "workspace must be the Git root");
   const head = (git(root, ["rev-parse", "HEAD"]) as string).trim();
   const commit =
     request.target.kind === "commit"
-      ? (
-          git(root, ["rev-parse", `${request.target.oid}^{commit}`]) as string
-        ).trim()
+      ? (git(root, ["rev-parse", `${request.target.oid}^{commit}`]) as string).trim()
       : head;
   if (request.target.kind === "commit" && commit !== request.target.oid)
     throw new ContextPatrolError(
@@ -259,8 +223,7 @@ export function loadSource(request: QueryRequest): LoadedSource {
     root,
     kind: request.target.kind,
     commit,
-    dirtyDigest:
-      request.target.kind === "working-tree" ? digest(changes) : digest([]),
+    dirtyDigest: request.target.kind === "working-tree" ? digest(changes) : digest([]),
     contentDigest,
     files: target.files,
     changes,
@@ -270,14 +233,8 @@ export function loadSource(request: QueryRequest): LoadedSource {
   };
 }
 
-export function verifySourceUnchanged(
-  request: QueryRequest,
-  expected: string,
-): void {
+export function verifySourceUnchanged(request: QueryRequest, expected: string): void {
   if (request.target.kind !== "working-tree") return;
   if (loadSource(request).contentDigest !== expected)
-    throw new ContextPatrolError(
-      "SOURCE_CHANGED",
-      "source changed during analysis",
-    );
+    throw new ContextPatrolError("SOURCE_CHANGED", "source changed during analysis");
 }

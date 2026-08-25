@@ -65,7 +65,8 @@
       "tokenEnv": "GITHUB_TOKEN",
       "wiki": true,
       "milestones": true,
-      "issues": true
+      "issues": true,
+      "pushMain": true
     }
   }
 }

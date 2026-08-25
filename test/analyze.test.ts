@@ -10,13 +10,7 @@ test("query uses indexed facts and honors exact output bytes", async () => {
   const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
   try {
     execFileSync("git", ["init", "-q", workspace]);
-    execFileSync("git", [
-      "-C",
-      workspace,
-      "config",
-      "user.email",
-      "test@example.com",
-    ]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
     execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
     writeFileSync(
       path.join(workspace, "service.ts"),

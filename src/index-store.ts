@@ -1,7 +1,7 @@
-import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { digest } from "./json.js";
 
 export interface CachedFacts {
@@ -95,9 +95,7 @@ export class IndexStore {
           JSON.stringify(facts.terms),
         );
       this.#db
-        .prepare(
-          "DELETE FROM fact_search WHERE hash = ? AND parser_version = ?",
-        )
+        .prepare("DELETE FROM fact_search WHERE hash = ? AND parser_version = ?")
         .run(hash, PARSER_VERSION);
       this.#db
         .prepare(

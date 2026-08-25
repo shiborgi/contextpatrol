@@ -33,18 +33,25 @@
     "schemas/",
     "README.md",
     "SECURITY.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "test": "node --test dist/test/*.test.js",
-    "check": "node dist/src/cli.js info",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm test && npm run check",
-    "release-check": "npm run verify && node scripts/package-smoke.mjs",
+    "lint": "biome check",
+    "format": "biome check --write",
+    "test:run": "node --test dist/test/*.test.js",
+    "test": "npm run build && npm run test:run",
+    "check": "npm run typecheck && npm run lint && npm run build && npm run test:run",
+    "smoke:run": "node scripts/smoke.mjs",
+    "smoke": "npm run build && npm run smoke:run",
+    "smoke:installed": "node scripts/package-smoke.mjs",
+    "cli-check:run": "node bin/contextpatrol.js --help",
+    "cli-check": "npm run build && npm run cli-check:run",
+    "verify": "npm run typecheck && npm run lint && npm run build && npm run test:run && npm run smoke:run && npm run cli-check:run",
+    "release-check": "npm run build && npm run smoke:installed",
     "prepack": "npm run build"
   },
   "dependencies": {
@@ -53,12 +60,9 @@
     "typescript": "^5.9.2"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@biomejs/biome": "2.5.8",
     "@types/emscripten": "^1.41.5",
-    "@types/node": "^24.13.3",
-    "eslint": "^10.0.1",
-    "prettier": "^3.6.2",
-    "typescript-eslint": "^8.41.0"
+    "@types/node": "^24.13.3"
   },
   "keywords": [
     "agents",

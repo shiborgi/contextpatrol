@@ -1,7 +1,7 @@
 import path from "node:path";
 import { LIMITS, PROVIDER_NAME, PROVIDER_VERSION } from "./constants.js";
 import { ContextPatrolError } from "./errors.js";
-import { IndexStore, type CachedFacts } from "./index-store.js";
+import { type CachedFacts, IndexStore } from "./index-store.js";
 import { canonicalJson, compareText, digest } from "./json.js";
 import { parseFile } from "./parser.js";
 import { loadSource, verifySourceUnchanged } from "./source.js";
@@ -80,9 +80,7 @@ function testSignals(
 ): ContextReport["tests"] {
   const testFiles = files
     .filter((file) =>
-      /(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(
-        file.path,
-      ),
+      /(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(file.path),
     )
     .map((file) => file.path)
     .sort(compareText);
@@ -91,24 +89,17 @@ function testSignals(
     .map((change) => change.path)
     .filter(
       (file) =>
-        !/(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(
-          file,
-        ),
+        !/(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(file),
     )
     .filter((file) => {
       const stem = path.posix.basename(file).replace(/\.[^.]+$/, "");
-      return !testFiles.some((test) =>
-        path.posix.basename(test).includes(stem),
-      );
+      return !testFiles.some((test) => path.posix.basename(test).includes(stem));
     })
     .sort(compareText);
   return { files: testFiles, changedSourceWithoutTest };
 }
 
-function snippet(
-  file: SourceFile,
-  terms: string[],
-): ContextReport["snippets"][number] {
+function snippet(file: SourceFile, terms: string[]): ContextReport["snippets"][number] {
   const lines = file.content.split("\n");
   const match = lines.findIndex((line) =>
     terms.some((term) => line.toLowerCase().includes(term)),
@@ -150,8 +141,7 @@ function refreshBudget(
 ): number {
   report.coverage.omittedFiles = available.files - report.files.length;
   report.coverage.omittedSymbols = available.symbols - report.symbols.length;
-  report.coverage.omittedRelations =
-    available.relations - report.relations.length;
+  report.coverage.omittedRelations = available.relations - report.relations.length;
   report.coverage.omittedSnippets = available.snippets - report.snippets.length;
   report.coverage.unresolvedRelations = available.unresolvedRelations;
   let bytes = outputBytes(report);
@@ -162,9 +152,7 @@ function refreshBudget(
   return bytes;
 }
 
-export async function queryContext(
-  request: QueryRequest,
-): Promise<ContextReport> {
+export async function queryContext(request: QueryRequest): Promise<ContextReport> {
   const source = loadSource(request);
   const store = new IndexStore(source.root);
   try {
@@ -179,23 +167,18 @@ export async function queryContext(
     const matchingHashes = store.search(terms);
     const ranked = indexed.sort(
       (left, right) =>
-        right.score - left.score ||
-        compareText(left.file.path, right.file.path),
+        right.score - left.score || compareText(left.file.path, right.file.path),
     );
     const selected = ranked
       .filter(
         ({ file, score: value }) =>
-          matchingHashes.size === 0 ||
-          matchingHashes.has(file.hash) ||
-          value > 0,
+          matchingHashes.size === 0 || matchingHashes.has(file.hash) || value > 0,
       )
       .slice(0, LIMITS.maxSelectedFiles);
     const selectedOrFallback =
       selected.length > 0 ? selected : ranked.slice(0, LIMITS.maxSelectedFiles);
     const known = new Set(source.files.map((file) => file.path));
-    const selectedPaths = new Set(
-      selectedOrFallback.map(({ file }) => file.path),
-    );
+    const selectedPaths = new Set(selectedOrFallback.map(({ file }) => file.path));
     const relationSources = indexed.filter(
       ({ file, facts }) =>
         selectedPaths.has(file.path) ||
@@ -278,9 +261,7 @@ export async function queryContext(
     const available = {
       files: selectedOrFallback.length,
       symbols: request.facets.includes("symbols") ? allSymbols.length : 0,
-      relations: request.facets.includes("relations")
-        ? relationFacts.length
-        : 0,
+      relations: request.facets.includes("relations") ? relationFacts.length : 0,
       snippets: request.facets.includes("source") ? allSnippets.length : 0,
       changes: changes.length,
       testFiles: tests.files.length,
