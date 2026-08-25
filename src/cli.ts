@@ -90,7 +90,7 @@ export async function runCli(
         2,
       );
     const parsed: unknown = JSON.parse(input.toString("utf8"));
-    return success(await queryContext(validateQueryRequest(parsed)));
+    return success(await queryContext(validateQueryRequest(parsed), ctx));
   } catch (error) {
     return failure(
       error instanceof ContextPatrolError

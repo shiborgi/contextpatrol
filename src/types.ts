@@ -1,5 +1,20 @@
 import type { FACETS } from "./constants.js";
 
+export interface CachedFacts {
+  language: string;
+  symbols: Array<{
+    id: string;
+    path: string;
+    name: string;
+    kind: string;
+    startLine: number;
+    endLine: number;
+    exported: boolean;
+  }>;
+  imports: string[];
+  terms: string[];
+}
+
 export type Facet = (typeof FACETS)[number];
 
 export interface QueryRequest {

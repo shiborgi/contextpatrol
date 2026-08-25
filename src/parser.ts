@@ -1,8 +1,7 @@
 import { createRequire } from "node:module";
 import { Language, type Node, Parser } from "web-tree-sitter";
-import type { CachedFacts } from "./index-store.js";
 import { compareText } from "./json.js";
-import type { SourceFile } from "./types.js";
+import type { CachedFacts, SourceFile } from "./types.js";
 
 const require = createRequire(import.meta.url);
 const LANGUAGE_ASSETS: Record<string, string> = {

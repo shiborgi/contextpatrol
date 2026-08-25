@@ -1,30 +1,21 @@
-import path from "node:path";
+import { finalize, refreshBudget } from "./budget.js";
 import { LIMITS, PROVIDER_NAME, PROVIDER_VERSION } from "./constants.js";
 import { ContextPatrolError } from "./errors.js";
-import { type CachedFacts, IndexStore } from "./index-store.js";
-import { canonicalJson, compareText, digest } from "./json.js";
+import { IndexStore } from "./index-store.js";
+import { compareText, digest } from "./json.js";
 import { parseFile } from "./parser.js";
+import { queryTerms, score } from "./ranking.js";
+import { resolveImport } from "./relations.js";
+import { noopLogger, type RunContext } from "./run-context.js";
+import { snippet } from "./snippets.js";
 import { loadSource, verifySourceUnchanged } from "./source.js";
-import type { ContextReport, QueryRequest, SourceFile } from "./types.js";
+import { testSignals } from "./tests.js";
+import type { CachedFacts, ContextReport, QueryRequest, SourceFile } from "./types.js";
 
 interface IndexedFile {
   file: SourceFile;
   facts: CachedFacts;
   score: number;
-}
-
-function queryTerms(query: string): string[] {
-  return [...new Set(query.toLowerCase().match(/[a-z0-9_]{2,}/g) ?? [])].sort(
-    compareText,
-  );
-}
-
-function score(file: SourceFile, facts: CachedFacts, terms: string[]): number {
-  const pathTerms = file.path.toLowerCase();
-  return terms.reduce((total, term) => {
-    const symbolHits = facts.terms.filter((value) => value === term).length;
-    return total + symbolHits * 4 + (pathTerms.includes(term) ? 2 : 0);
-  }, 0);
 }
 
 function factsAtPath(facts: CachedFacts, file: SourceFile): CachedFacts {
@@ -38,121 +29,12 @@ function factsAtPath(facts: CachedFacts, file: SourceFile): CachedFacts {
   };
 }
 
-function resolveImport(
-  from: string,
-  specifier: string,
-  files: Set<string>,
-): string | undefined {
-  if (!specifier.startsWith(".")) return undefined;
-  const base = path.posix.normalize(
-    path.posix.join(path.posix.dirname(from), specifier),
-  );
-  const candidates = [
-    base,
-    ...[
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".mjs",
-      ".cjs",
-      ".py",
-      ".go",
-      ".rs",
-      ".java",
-      ".cs",
-      ".kt",
-      ".php",
-      ".rb",
-      ".swift",
-      ".c",
-    ].map((extension) => `${base}${extension}`),
-    ...[".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs"].map(
-      (extension) => `${base}/index${extension}`,
-    ),
-  ];
-  return candidates.find((candidate) => files.has(candidate));
-}
-
-function testSignals(
-  files: SourceFile[],
-  changes: ContextReport["changes"],
-): ContextReport["tests"] {
-  const testFiles = files
-    .filter((file) =>
-      /(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(file.path),
-    )
-    .map((file) => file.path)
-    .sort(compareText);
-  const changedSourceWithoutTest = changes
-    .filter((change) => change.status !== "deleted")
-    .map((change) => change.path)
-    .filter(
-      (file) =>
-        !/(?:^|\/)(?:test|tests|__tests__)\/|\.(?:test|spec)\.[^.]+$/i.test(file),
-    )
-    .filter((file) => {
-      const stem = path.posix.basename(file).replace(/\.[^.]+$/, "");
-      return !testFiles.some((test) => path.posix.basename(test).includes(stem));
-    })
-    .sort(compareText);
-  return { files: testFiles, changedSourceWithoutTest };
-}
-
-function snippet(file: SourceFile, terms: string[]): ContextReport["snippets"][number] {
-  const lines = file.content.split("\n");
-  const match = lines.findIndex((line) =>
-    terms.some((term) => line.toLowerCase().includes(term)),
-  );
-  const start = Math.max(0, (match < 0 ? 0 : match) - 12);
-  const selected = lines.slice(start, start + 25);
-  let text = selected.join("\n");
-  if (Buffer.byteLength(text, "utf8") > 2_400)
-    text = Buffer.from(text, "utf8").subarray(0, 2_400).toString("utf8");
-  return {
-    path: file.path,
-    startLine: start + 1,
-    endLine: start + selected.length,
-    text,
-    clipped: start > 0 || start + selected.length < lines.length,
-  };
-}
-
-function finalize(report: Omit<ContextReport, "reportDigest">): ContextReport {
-  return { ...report, reportDigest: digest(report) };
-}
-
-function outputBytes(report: Omit<ContextReport, "reportDigest">): number {
-  return Buffer.byteLength(canonicalJson(finalize(report)), "utf8") + 1;
-}
-
-function refreshBudget(
-  report: Omit<ContextReport, "reportDigest">,
-  available: {
-    files: number;
-    symbols: number;
-    relations: number;
-    snippets: number;
-    changes: number;
-    testFiles: number;
-    testGaps: number;
-    unresolvedRelations: number;
-  },
-): number {
-  report.coverage.omittedFiles = available.files - report.files.length;
-  report.coverage.omittedSymbols = available.symbols - report.symbols.length;
-  report.coverage.omittedRelations = available.relations - report.relations.length;
-  report.coverage.omittedSnippets = available.snippets - report.snippets.length;
-  report.coverage.unresolvedRelations = available.unresolvedRelations;
-  let bytes = outputBytes(report);
-  while (report.budget.outputBytes !== bytes) {
-    report.budget.outputBytes = bytes;
-    bytes = outputBytes(report);
-  }
-  return bytes;
-}
-
-export async function queryContext(request: QueryRequest): Promise<ContextReport> {
+export async function queryContext(
+  request: QueryRequest,
+  ctx?: RunContext,
+): Promise<ContextReport> {
+  const log = ctx?.log ?? noopLogger;
+  log.debug("analysis started");
   const source = loadSource(request);
   const store = new IndexStore(source.root);
   try {

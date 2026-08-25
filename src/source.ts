@@ -60,7 +60,7 @@ function nulList(value: Buffer | string): string[] {
   return value.toString().split("\0").filter(Boolean).sort(compareText);
 }
 
-function allowedPath(file: string, request: QueryRequest): boolean {
+export function allowedPath(file: string, request: QueryRequest): boolean {
   const normalized = file.split(path.sep).join("/");
   const parts = normalized.split("/");
   if (parts.some((part) => DENIED_PARTS.has(part))) return false;
@@ -98,7 +98,7 @@ function assertSafeFile(root: string, relative: string): string {
   return resolved;
 }
 
-function redact(text: string): string {
+export function redact(text: string): string {
   let output = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
   for (const pattern of REDACTIONS) output = output.replace(pattern, "$1[REDACTED]");
   return output;

@@ -3,21 +3,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { digest } from "./json.js";
+import type { CachedFacts } from "./types.js";
 
-export interface CachedFacts {
-  language: string;
-  symbols: Array<{
-    id: string;
-    path: string;
-    name: string;
-    kind: string;
-    startLine: number;
-    endLine: number;
-    exported: boolean;
-  }>;
-  imports: string[];
-  terms: string[];
-}
+export type { CachedFacts } from "./types.js";
 
 const PARSER_VERSION = "tree-sitter-v1";
 
