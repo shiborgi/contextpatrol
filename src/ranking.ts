@@ -7,10 +7,16 @@ export function queryTerms(query: string): string[] {
   );
 }
 
-export function score(file: SourceFile, facts: CachedFacts, terms: string[]): number {
+export function score(
+  file: SourceFile,
+  facts: CachedFacts,
+  terms: string[],
+  changed = false,
+): number {
   const pathTerms = file.path.toLowerCase();
-  return terms.reduce((total, term) => {
+  const relevance = terms.reduce((total, term) => {
     const symbolHits = facts.terms.filter((value) => value === term).length;
     return total + symbolHits * 4 + (pathTerms.includes(term) ? 2 : 0);
   }, 0);
+  return relevance + (changed ? 1_000_000 : 0);
 }

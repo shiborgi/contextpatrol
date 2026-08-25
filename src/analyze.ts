@@ -39,12 +39,19 @@ export async function queryContext(
   const store = new IndexStore(source.root);
   try {
     const terms = queryTerms(request.query);
+    const changedPaths = request.baseline
+      ? new Set(source.changes.map((entry) => entry.path))
+      : new Set<string>();
     const indexed: IndexedFile[] = [];
     for (const file of source.files) {
       const cached = store.get(file.hash);
       const facts = factsAtPath(cached ?? (await parseFile(file)), file);
       if (!cached) store.put(file.hash, facts);
-      indexed.push({ file, facts, score: score(file, facts, terms) });
+      indexed.push({
+        file,
+        facts,
+        score: score(file, facts, terms, changedPaths.has(file.path)),
+      });
     }
     const ranked = indexed.sort(
       (left, right) =>
@@ -143,14 +150,20 @@ export async function queryContext(
       unresolvedRelations,
     };
     while (refreshBudget(report, available) > request.maxOutputBytes) {
+      const unchangedFile = report.files.findLastIndex(
+        (file) => !changedPaths.has(file.path),
+      );
       if (report.snippets.length > 0) report.snippets.pop();
       else if (report.relations.length > 0) report.relations.pop();
       else if (report.symbols.length > 0) report.symbols.pop();
-      else if (report.files.length > 0) report.files.pop();
+      else if (unchangedFile >= 0) report.files.splice(unchangedFile, 1);
       else if (report.tests.files.length > 0) report.tests.files.pop();
       else if (report.tests.changedSourceWithoutTest.length > 0)
         report.tests.changedSourceWithoutTest.pop();
-      else if (report.changes.length > 0) report.changes.pop();
+      else if (report.changes.length > (source.changes.length > 0 ? 1 : 0))
+        report.changes.pop();
+      else if (report.files.length > 0 && source.changes.length === 0)
+        report.files.pop();
       else
         throw new ContextPatrolError(
           "BUDGET_TOO_SMALL",
