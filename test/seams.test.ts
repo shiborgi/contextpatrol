@@ -5,8 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { queryContext } from "../src/analyze.js";
+import { SOURCE_EXTENSIONS } from "../src/constants.js";
 import { IndexStore } from "../src/index-store.js";
 import { parseFile } from "../src/parser.js";
+import { resolveImport } from "../src/relations.js";
 import { allowedPath, redact } from "../src/source.js";
 import type { QueryRequest, SourceFile } from "../src/types.js";
 
@@ -26,7 +28,31 @@ test("source policy and redaction are directly testable", () => {
   assert.equal(redact("token: supersecretvalue"), "token: [REDACTED]");
   assert.equal(
     redact("-----BEGIN PRIVATE KEY-----secret-----END PRIVATE KEY-----"),
-    "$1[REDACTED]",
+    "[REDACTED]",
+  );
+});
+
+test("ranking does not require an FTS match to select a scored file", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-ranking-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "service.ts"), "export function service() {}\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const report = await queryContext({ ...request, workspace, query: "service" });
+    assert.ok(report.files.some((file) => file.path === "service.ts"));
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("import candidates use the shared extension table", () => {
+  assert.equal(SOURCE_EXTENSIONS.has(".ts"), true);
+  assert.equal(
+    resolveImport("src/main.ts", "./helper", new Set(["src/helper.ts"])),
+    "src/helper.ts",
   );
 });
 

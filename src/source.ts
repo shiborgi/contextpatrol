@@ -100,7 +100,11 @@ function assertSafeFile(root: string, relative: string): string {
 
 export function redact(text: string): string {
   let output = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-  for (const pattern of REDACTIONS) output = output.replace(pattern, "$1[REDACTED]");
+  for (const pattern of REDACTIONS)
+    output = output.replace(pattern, (...args) => {
+      const prefix = typeof args[1] === "string" ? args[1] : "";
+      return `${prefix}[REDACTED]`;
+    });
   return output;
 }
 

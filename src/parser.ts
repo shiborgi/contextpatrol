@@ -11,7 +11,6 @@ const LANGUAGE_ASSETS: Record<string, string> = {
   java: "tree-sitter-java.wasm",
   js: "tree-sitter-javascript.wasm",
   jsx: "tree-sitter-javascript.wasm",
-  kt: "tree-sitter-java.wasm",
   mjs: "tree-sitter-javascript.wasm",
   php: "tree-sitter-php.wasm",
   py: "tree-sitter-python.wasm",

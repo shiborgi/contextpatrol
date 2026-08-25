@@ -1,4 +1,5 @@
 import path from "node:path";
+import { SOURCE_EXTENSIONS } from "./constants.js";
 
 export function resolveImport(
   from: string,
@@ -11,27 +12,8 @@ export function resolveImport(
   );
   const candidates = [
     base,
-    ...[
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".mjs",
-      ".cjs",
-      ".py",
-      ".go",
-      ".rs",
-      ".java",
-      ".cs",
-      ".kt",
-      ".php",
-      ".rb",
-      ".swift",
-      ".c",
-    ].map((extension) => `${base}${extension}`),
-    ...[".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs"].map(
-      (extension) => `${base}/index${extension}`,
-    ),
+    ...[...SOURCE_EXTENSIONS].map((extension) => `${base}${extension}`),
+    ...[...SOURCE_EXTENSIONS].map((extension) => `${base}/index${extension}`),
   ];
   return candidates.find((candidate) => files.has(candidate));
 }

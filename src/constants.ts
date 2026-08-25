@@ -21,7 +21,6 @@ export const LIMITS = {
   maxSnippets: 24,
   maxSymbols: 120,
   maxRelations: 160,
-  relationDepth: 1,
 } as const;
 
 export const SOURCE_EXTENSIONS = new Set([

@@ -33,12 +33,6 @@ export class IndexStore {
         terms_json TEXT NOT NULL,
         PRIMARY KEY (hash, parser_version)
       ) WITHOUT ROWID;
-      CREATE VIRTUAL TABLE IF NOT EXISTS fact_search USING fts5(
-        hash UNINDEXED,
-        parser_version UNINDEXED,
-        terms,
-        tokenize = 'unicode61'
-      );
     `);
   }
 
@@ -82,33 +76,11 @@ export class IndexStore {
           JSON.stringify(facts.imports),
           JSON.stringify(facts.terms),
         );
-      this.#db
-        .prepare("DELETE FROM fact_search WHERE hash = ? AND parser_version = ?")
-        .run(hash, PARSER_VERSION);
-      this.#db
-        .prepare(
-          "INSERT INTO fact_search (hash, parser_version, terms) VALUES (?, ?, ?)",
-        )
-        .run(hash, PARSER_VERSION, facts.terms.join(" "));
       this.#db.exec("COMMIT");
     } catch (error) {
       this.#db.exec("ROLLBACK");
       throw error;
     }
-  }
-
-  search(queryTerms: string[]): Set<string> {
-    if (queryTerms.length === 0) return new Set();
-    const expression = queryTerms
-      .slice(0, 24)
-      .map((term) => `"${term}"`)
-      .join(" OR ");
-    const rows = this.#db
-      .prepare(
-        "SELECT hash FROM fact_search WHERE fact_search MATCH ? AND parser_version = ?",
-      )
-      .all(expression, PARSER_VERSION) as Array<{ hash: string }>;
-    return new Set(rows.map((row) => row.hash));
   }
 
   close(): void {

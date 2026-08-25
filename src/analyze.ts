@@ -46,19 +46,11 @@ export async function queryContext(
       if (!cached) store.put(file.hash, facts);
       indexed.push({ file, facts, score: score(file, facts, terms) });
     }
-    const matchingHashes = store.search(terms);
     const ranked = indexed.sort(
       (left, right) =>
         right.score - left.score || compareText(left.file.path, right.file.path),
     );
-    const selected = ranked
-      .filter(
-        ({ file, score: value }) =>
-          matchingHashes.size === 0 || matchingHashes.has(file.hash) || value > 0,
-      )
-      .slice(0, LIMITS.maxSelectedFiles);
-    const selectedOrFallback =
-      selected.length > 0 ? selected : ranked.slice(0, LIMITS.maxSelectedFiles);
+    const selectedOrFallback = ranked.slice(0, LIMITS.maxSelectedFiles);
     const known = new Set(source.files.map((file) => file.path));
     const selectedPaths = new Set(selectedOrFallback.map(({ file }) => file.path));
     const relationSources = indexed.filter(
