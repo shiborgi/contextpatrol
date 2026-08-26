@@ -89,7 +89,7 @@ export async function runCli(
         "request exceeds the input limit",
         2,
       );
-    const parsed: unknown = JSON.parse(input.toString("utf8"));
+    const parsed = parseExactlyOneJson(input.toString("utf8"));
     return success(await queryContext(validateQueryRequest(parsed), ctx));
   } catch (error) {
     return failure(
@@ -97,6 +97,14 @@ export async function runCli(
         ? error
         : new ContextPatrolError("REQUEST_INVALID", "request is not valid JSON", 2),
     );
+  }
+}
+
+function parseExactlyOneJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new ContextPatrolError("REQUEST_INVALID", "request is not valid JSON", 2);
   }
 }
 

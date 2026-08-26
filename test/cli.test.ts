@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { runCli } from "../src/cli.js";
 
@@ -166,4 +170,58 @@ test("JSON errors remain {error,message} on stderr with empty stdout", async () 
   };
   assert.equal(verboseParsed.error, "USAGE");
   assert.deepEqual(Object.keys(verboseParsed).sort(), ["error", "message"]);
+});
+
+test("query stdin rejects concatenated and truncated JSON", async () => {
+  const body = {
+    schemaVersion: 1,
+    workspace: "/tmp/project",
+    query: "x",
+    facets: ["symbols"],
+    maxOutputBytes: 1024,
+    target: { kind: "working-tree" },
+  };
+  const concatenated = await runCli(
+    ["node", "contextpatrol", "query", "--input", "-"],
+    async () => Buffer.from(`${JSON.stringify(body)}${JSON.stringify(body)}`),
+  );
+  assert.equal(concatenated.exitCode, 2);
+  assert.equal(JSON.parse(concatenated.stderr).error, "REQUEST_INVALID");
+
+  const truncated = await runCli(
+    ["node", "contextpatrol", "query", "--input", "-"],
+    async () => Buffer.from(JSON.stringify(body).slice(0, 12)),
+  );
+  assert.equal(truncated.exitCode, 2);
+  assert.equal(JSON.parse(truncated.stderr).error, "REQUEST_INVALID");
+});
+
+test("query stdin accepts a single well-formed request", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "ok.ts"), "export const ok = 1;\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "ok"]);
+    const result = await runCli(
+      ["node", "contextpatrol", "query", "--input", "-"],
+      async () =>
+        Buffer.from(
+          JSON.stringify({
+            schemaVersion: 1,
+            workspace,
+            query: "ok",
+            facets: ["symbols"],
+            maxOutputBytes: 2048,
+            target: { kind: "working-tree" },
+          }),
+        ),
+    );
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).provider.name, "contextpatrol");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });
