@@ -9,6 +9,7 @@ export const FACETS = [
   "changes",
   "tests",
 ] as const;
+export const SOURCE_DEPTHS = ["full", "signatures", "listing"] as const;
 export const LIMITS = {
   requestBytes: 1024 * 1024,
   maxOutputBytes: 64 * 1024,
@@ -21,6 +22,8 @@ export const LIMITS = {
   maxSnippets: 24,
   maxSymbols: 120,
   maxRelations: 160,
+  maxRankingIdents: 50,
+  maxRankingIdentBytes: 128,
 } as const;
 
 export const SOURCE_EXTENSIONS = new Set([

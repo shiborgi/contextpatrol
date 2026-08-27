@@ -1,4 +1,4 @@
-import type { FACETS } from "./constants.js";
+import type { FACETS, SOURCE_DEPTHS } from "./constants.js";
 
 export interface CachedFacts {
   language: string;
@@ -16,6 +16,13 @@ export interface CachedFacts {
 }
 
 export type Facet = (typeof FACETS)[number];
+export type SourceDepth = (typeof SOURCE_DEPTHS)[number];
+
+export interface RankingHints {
+  boostIdents?: string[];
+  boostPaths?: string[];
+  dampenPaths?: string[];
+}
 
 export interface QueryRequest {
   schemaVersion: 1;
@@ -27,6 +34,8 @@ export interface QueryRequest {
   baseline?: { oid: string };
   includePaths?: string[];
   excludePaths?: string[];
+  sourceDepth?: SourceDepth;
+  ranking?: RankingHints;
 }
 
 export interface SourceFile {

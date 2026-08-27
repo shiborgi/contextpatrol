@@ -1,8 +1,8 @@
 import path from "node:path";
-import { FACETS, LIMITS, SCHEMA_VERSION } from "./constants.js";
+import { FACETS, LIMITS, SCHEMA_VERSION, SOURCE_DEPTHS } from "./constants.js";
 import { ContextPatrolError } from "./errors.js";
 import { exactKeys, isRecord } from "./json.js";
-import type { Facet, QueryRequest } from "./types.js";
+import type { Facet, QueryRequest, RankingHints, SourceDepth } from "./types.js";
 
 const OID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 
@@ -38,6 +38,50 @@ function paths(value: unknown, label: string): string[] | undefined {
   return parsed;
 }
 
+function sourceDepth(value: unknown, label: string): SourceDepth | undefined {
+  if (value === undefined) return undefined;
+  const parsed = text(value, label);
+  if (!SOURCE_DEPTHS.includes(parsed as SourceDepth))
+    throw new Error(
+      `${label} must be one of ${SOURCE_DEPTHS.map((entry) => JSON.stringify(entry)).join(", ")}`,
+    );
+  return parsed as SourceDepth;
+}
+
+function rankingStrings(value: unknown, label: string): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > LIMITS.maxRankingIdents)
+    throw new Error(
+      `${label} must be an array with at most ${LIMITS.maxRankingIdents} entries`,
+    );
+  const parsed = value.map((item, index) => {
+    const itemText = text(item, `${label}.${index}`);
+    const bytes = Buffer.byteLength(itemText, "utf8");
+    if (bytes > LIMITS.maxRankingIdentBytes)
+      throw new Error(
+        `${label}.${index} exceeds ${LIMITS.maxRankingIdentBytes} UTF-8 bytes`,
+      );
+    return itemText;
+  });
+  if (new Set(parsed).size !== parsed.length)
+    throw new Error(`${label} must not contain duplicates`);
+  return parsed;
+}
+
+function ranking(value: unknown, label: string): RankingHints | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
+  exactKeys(value, ["boostIdents", "boostPaths", "dampenPaths"], [], label);
+  const boostIdents = rankingStrings(value.boostIdents, `${label}.boostIdents`);
+  const boostPaths = rankingStrings(value.boostPaths, `${label}.boostPaths`);
+  const dampenPaths = rankingStrings(value.dampenPaths, `${label}.dampenPaths`);
+  const result: RankingHints = {};
+  if (boostIdents !== undefined) result.boostIdents = boostIdents;
+  if (boostPaths !== undefined) result.boostPaths = boostPaths;
+  if (dampenPaths !== undefined) result.dampenPaths = dampenPaths;
+  return result;
+}
+
 export function validateQueryRequest(value: unknown): QueryRequest {
   try {
     if (!isRecord(value)) throw new Error("query request must be an object");
@@ -53,6 +97,8 @@ export function validateQueryRequest(value: unknown): QueryRequest {
         "baseline",
         "includePaths",
         "excludePaths",
+        "sourceDepth",
+        "ranking",
       ],
       ["schemaVersion", "workspace", "query", "facets", "maxOutputBytes", "target"],
       "query request",
@@ -106,6 +152,8 @@ export function validateQueryRequest(value: unknown): QueryRequest {
     }
     const includePaths = paths(value.includePaths, "query request.includePaths");
     const excludePaths = paths(value.excludePaths, "query request.excludePaths");
+    const requestedDepth = sourceDepth(value.sourceDepth, "query request.sourceDepth");
+    const rankingHints = ranking(value.ranking, "query request.ranking");
     return {
       schemaVersion: 1,
       workspace,
@@ -119,6 +167,8 @@ export function validateQueryRequest(value: unknown): QueryRequest {
       ...(baseline ? { baseline } : {}),
       ...(includePaths ? { includePaths } : {}),
       ...(excludePaths ? { excludePaths } : {}),
+      ...(requestedDepth ? { sourceDepth: requestedDepth } : {}),
+      ...(rankingHints ? { ranking: rankingHints } : {}),
     };
   } catch (error) {
     if (error instanceof ContextPatrolError) throw error;

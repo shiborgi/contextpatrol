@@ -56,6 +56,44 @@ Use an immutable commit when current filesystem content is not appropriate:
 The public schemas are in `schemas/`. The request has no caller lifecycle fields;
 the query describes a code-analysis need, not an orchestration action.
 
+Optional fields keep the contract backward compatible. `sourceDepth` selects how
+much source detail excerpts carry when the `source` facet is requested: `full`
+(the default when absent) keeps the current excerpt behavior, `signatures` asks
+for declaration-level excerpts, and `listing` asks for path-level entries only.
+
+```json
+{
+  "schemaVersion": 1,
+  "workspace": "/absolute/path/to/repository",
+  "query": "map the public API surface",
+  "facets": ["structure", "symbols", "source"],
+  "maxOutputBytes": 16384,
+  "target": { "kind": "working-tree" },
+  "sourceDepth": "signatures"
+}
+```
+
+`ranking` supplies deterministic relevance hints that participate in file
+scoring: `boostIdents` adds query terms, while `boostPaths` and `dampenPaths`
+weight files by path prefix. Every hint list holds at most 50 unique entries of
+128 UTF-8 bytes or fewer.
+
+```json
+{
+  "schemaVersion": 1,
+  "workspace": "/absolute/path/to/repository",
+  "query": "trace token validation",
+  "facets": ["symbols", "relations", "source"],
+  "maxOutputBytes": 14400,
+  "target": { "kind": "working-tree" },
+  "ranking": { "boostIdents": ["validateToken"], "boostPaths": ["src"] }
+}
+```
+
+Both fields are part of the canonical request, so they are covered by
+`requestDigest` and repeatable byte-for-byte. A request that omits them behaves
+exactly as before.
+
 ## Integration
 
 The 1.0.0 integration uses process boundaries only. CodePatrol invokes

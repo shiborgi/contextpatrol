@@ -75,6 +75,31 @@
       "maxItems": 200,
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
+    },
+    "sourceDepth": { "enum": ["full", "signatures", "listing"] },
+    "ranking": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boostIdents": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "boostPaths": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "dampenPaths": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
     }
   }
 }
