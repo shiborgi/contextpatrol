@@ -14,9 +14,11 @@ export function score(
   changed = false,
 ): number {
   const pathTerms = file.path.toLowerCase();
+  const contentTerms = queryTerms(file.content);
   const relevance = terms.reduce((total, term) => {
     const symbolHits = facts.terms.filter((value) => value === term).length;
-    return total + symbolHits * 4 + (pathTerms.includes(term) ? 2 : 0);
+    const contentHits = contentTerms.filter((value) => value === term).length;
+    return total + symbolHits * 4 + (pathTerms.includes(term) ? 2 : 0) + contentHits;
   }, 0);
   return relevance + (changed ? 1_000_000 : 0);
 }

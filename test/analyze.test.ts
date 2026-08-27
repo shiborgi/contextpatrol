@@ -49,6 +49,34 @@ test("query uses indexed facts and honors exact output bytes", async () => {
   }
 });
 
+test("body-only call sites rank above unrelated files", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "unrelated.ts"), "export function noop() {}\n");
+    writeFileSync(path.join(workspace, "caller.ts"), "void uniqueidentifier();\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const report = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "uniqueidentifier",
+      facets: ["structure"],
+      maxOutputBytes: 8_192,
+      target: { kind: "working-tree" },
+    });
+    const caller = report.files.find((entry) => entry.path === "caller.ts");
+    const unrelated = report.files.find((entry) => entry.path === "unrelated.ts");
+    assert.ok(caller);
+    assert.ok(unrelated);
+    assert.ok(caller.score > unrelated.score);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
 test("limited baseline query keeps a changed path", async () => {
   const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
   try {

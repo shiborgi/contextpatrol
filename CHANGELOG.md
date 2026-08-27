@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Rank files using query-term hits in file content as well as path and declared
+  symbol terms.
 - Adopt family documentation, GitHub issue and pull-request templates, matrix
   CI, and Biome 2.5.8.
 
