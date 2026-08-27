@@ -84,5 +84,8 @@ npm run verify
 npm run release-check
 ```
 
+The [WAVE-5.1 experiment guide](docs/contextpatrol-wave-5-1-experiment.md)
+defines controlled evaluation of the opt-in context profiles.
+
 Any caller may consume reports as optional advisory context. ContextPatrol remains
 independent and does not know or invoke its callers.
