@@ -67,7 +67,8 @@
       "properties": {
         "query": { "type": "string" },
         "filesConsidered": { "type": "integer", "minimum": 0 },
-        "filesSelected": { "type": "integer", "minimum": 0 }
+        "filesSelected": { "type": "integer", "minimum": 0 },
+        "rankingHintsApplied": { "type": "boolean" }
       }
     },
     "files": { "type": "array" },

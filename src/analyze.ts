@@ -50,7 +50,7 @@ export async function queryContext(
       indexed.push({
         file,
         facts,
-        score: score(file, facts, terms, changedPaths.has(file.path)),
+        score: score(file, facts, terms, changedPaths.has(file.path), request.ranking),
       });
     }
     const ranked = indexed.sort(
@@ -85,11 +85,16 @@ export async function queryContext(
       .sort((left, right) => compareText(left.id, right.id));
     const allSnippets = selectedOrFallback
       .slice(0, LIMITS.maxSnippets)
-      .map(({ file }) => snippet(file, terms));
+      .map(({ file, facts }) => snippet(file, terms, request.sourceDepth, facts));
     const changes = request.facets.includes("changes") ? source.changes : [];
     const tests = request.facets.includes("tests")
       ? testSignals(source.files, source.changes)
       : { files: [], changedSourceWithoutTest: [] };
+    const rankingHintsApplied =
+      request.ranking !== undefined &&
+      ((request.ranking.boostIdents?.length ?? 0) > 0 ||
+        (request.ranking.boostPaths?.length ?? 0) > 0 ||
+        (request.ranking.dampenPaths?.length ?? 0) > 0);
     const report: Omit<ContextReport, "reportDigest"> = {
       schemaVersion: 1,
       provider: { name: PROVIDER_NAME, version: PROVIDER_VERSION },
@@ -109,6 +114,7 @@ export async function queryContext(
         query: request.query,
         filesConsidered: source.eligibleFiles,
         filesSelected: selectedOrFallback.length,
+        ...(rankingHintsApplied ? { rankingHintsApplied: true } : {}),
       },
       files: request.facets.includes("structure")
         ? selectedOrFallback.map(({ file, score: value }) => ({

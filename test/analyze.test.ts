@@ -125,3 +125,162 @@ test("limited baseline query keeps a changed path", async () => {
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("sourceDepth variants bound snippet detail end to end", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    execFileSync("mkdir", ["-p", path.join(workspace, "src")]);
+    writeFileSync(
+      path.join(workspace, "src", "token.js"),
+      [
+        "// validate the token prefix",
+        "export function validateToken(token) {",
+        "  if (!token.startsWith('token_')) {",
+        "    return false;",
+        "  }",
+        "  return true;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(workspace, "src", "consumer.ts"),
+      "import { validateToken } from './token.js';\nexport function authorize(token: string): boolean {\n  return validateToken(token);\n}\n",
+    );
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const base = {
+      schemaVersion: 1 as const,
+      workspace,
+      query: "token validate",
+      facets: ["structure", "symbols", "source"] as const,
+      maxOutputBytes: 16_384,
+      target: { kind: "working-tree" as const },
+    };
+    const full = await queryContext({ ...base, facets: [...base.facets] });
+    const signatures = await queryContext({
+      ...base,
+      facets: [...base.facets],
+      sourceDepth: "signatures",
+    });
+    const listing = await queryContext({
+      ...base,
+      facets: [...base.facets],
+      sourceDepth: "listing",
+    });
+    const fullToken = full.snippets.find((entry) => entry.path === "src/token.js");
+    const signaturesToken = signatures.snippets.find(
+      (entry) => entry.path === "src/token.js",
+    );
+    assert.ok(fullToken);
+    assert.ok(signaturesToken);
+    assert.ok(
+      Buffer.byteLength(signaturesToken.text, "utf8") <
+        Buffer.byteLength(fullToken.text, "utf8"),
+    );
+    assert.ok(listing.snippets.length > 0);
+    for (const entry of listing.snippets) {
+      assert.equal(entry.text, "");
+      assert.equal(entry.clipped, false);
+    }
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("ranking and sourceDepth compose deterministically end to end", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    execFileSync("mkdir", ["-p", path.join(workspace, "src")]);
+    writeFileSync(
+      path.join(workspace, "src", "token.js"),
+      [
+        "// validate the token prefix",
+        "export function validateToken(token) {",
+        "  return token.startsWith('token_');",
+        "}",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      path.join(workspace, "src", "caller.ts"),
+      "import { validateToken } from './token.js';\nvoid validateToken('token_x');\n",
+    );
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const request = {
+      schemaVersion: 1 as const,
+      workspace,
+      query: "token",
+      facets: ["structure", "symbols", "source"] as const,
+      maxOutputBytes: 16_384,
+      target: { kind: "working-tree" as const },
+      sourceDepth: "signatures" as const,
+      ranking: { boostIdents: ["validateToken"], boostPaths: ["src"] },
+    };
+    const first = await queryContext({ ...request, facets: [...request.facets] });
+    const second = await queryContext({ ...request, facets: [...request.facets] });
+    assert.equal(first.reportDigest, second.reportDigest);
+    assert.equal(first.summary.rankingHintsApplied, true);
+    const plain = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "token",
+      facets: ["structure", "symbols", "source"],
+      maxOutputBytes: 16_384,
+      target: { kind: "working-tree" },
+    });
+    assert.equal(plain.summary.rankingHintsApplied, undefined);
+    for (let index = 0; index < 6; index += 1) {
+      const prior = index === 0 ? null : `m${index - 1}`;
+      writeFileSync(
+        path.join(workspace, "src", `m${index}.ts`),
+        `${prior ? `import { f${index - 1} } from './m${index - 1}.js';\n` : ""}` +
+          `export function f${index}() {\n  return ${index};\n}\n`,
+      );
+    }
+    const ladderFacets = ["structure", "symbols", "relations", "source"] as const;
+    const wide = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "token",
+      facets: [...ladderFacets],
+      maxOutputBytes: 16_384,
+      target: { kind: "working-tree" },
+    });
+    const narrow = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "token",
+      facets: [...ladderFacets],
+      maxOutputBytes: 1_200,
+      target: { kind: "working-tree" },
+    });
+    assert.equal(wide.budget.limited, false);
+    assert.equal(narrow.budget.limited, true);
+    assert.ok(
+      wide.relations.length > narrow.relations.length,
+      "the narrow budget must trim at least one relation",
+    );
+    if (narrow.relations.length < wide.relations.length)
+      assert.equal(
+        narrow.snippets.length,
+        0,
+        "trim ladder must exhaust snippets before relations",
+      );
+    if (narrow.symbols.length < wide.symbols.length)
+      assert.equal(
+        narrow.relations.length,
+        0,
+        "trim ladder must exhaust relations before symbols",
+      );
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});

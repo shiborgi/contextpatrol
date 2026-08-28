@@ -66,6 +66,7 @@ export interface ContextReport {
     query: string;
     filesConsidered: number;
     filesSelected: number;
+    rankingHintsApplied?: boolean;
   };
   files: Array<{
     path: string;
