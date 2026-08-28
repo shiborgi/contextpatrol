@@ -17,6 +17,40 @@ is universally best.
 The profiles are opt-in. Existing profiles and defaults remain the normal
 integration choices.
 
+## Stage-typed profiles: spec, plan, build, review
+
+The stage-typed recipes are opt-in advisory combinations of the same bounded
+facets. They use the signal most relevant to a kind of analysis while omitting
+signals that can distract from that purpose. The WAVE-5.1 controlled paired
+protocol remains the evaluation methodology for comparing these recipes; the
+stage names do not add metadata to a ContextPatrol request or report.
+
+| Profile | Facets | Max output bytes |
+| --- | --- | ---: |
+| `spec-survey` | `[structure, symbols]` | `12800` |
+| `spec-deep` | `[structure, symbols, relations]` | `19200` |
+| `plan-impact` | `[changes, symbols, relations, tests]` | `19200` |
+| `plan-deep` | `[changes, symbols, relations, source, tests]` | `24000` |
+| `build-work` | `[symbols, source, tests]` | `19200` |
+| `build-deep` | `[symbols, relations, source, tests]` | `24000` |
+| `review-diff` | `[changes, symbols, relations]` | `12800` |
+| `review-grounded` | `[changes, symbols, relations, source, tests]` | `19200` |
+
+The spec recipes emphasize repository shape and declared symbols. `spec-survey`
+omits relations and source excerpts to keep the initial map focused, while
+`spec-deep` adds relations for a more connected structural view. The plan
+recipes emphasize changes, dependencies, and test signals; `plan-impact` omits
+source excerpts to reduce detail that can obscure change boundaries, while
+`plan-deep` adds source for cases that need implementation evidence.
+
+The build recipes emphasize symbols, source, and tests. `build-work` omits
+relations to leave more budget for implementation excerpts, while `build-deep`
+adds relations when dependency context is useful. The review recipes emphasize
+changes and relations. `review-diff` omits source and tests for a compact
+structural comparison, while `review-grounded` adds both signals for a broader
+evidence set. All eight recipes remain bounded and advisory; none is required
+or authoritative.
+
 ## Intended Evidence
 
 The experiment is intended to establish whether the recipes provide useful,

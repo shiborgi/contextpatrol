@@ -4,6 +4,10 @@
 
 - Add five opt-in WAVE-5.1 context recipes and a [controlled experiment
   guide](docs/contextpatrol-wave-5-1-experiment.md).
+- Add eight opt-in stage-typed recipes: `spec-survey`, `spec-deep`, `plan-impact`,
+  `plan-deep`, `build-work`, `build-deep`, `review-diff`, and `review-grounded`.
+- Add optional `sourceDepth` and `ranking` request fields with deterministic,
+  bounded behavior.
 - Rank files using query-term hits in file content as well as path and declared
   symbol terms.
 - Adopt family documentation, GitHub issue and pull-request templates, matrix

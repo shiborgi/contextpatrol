@@ -125,5 +125,11 @@ npm run release-check
 The [WAVE-5.1 experiment guide](docs/contextpatrol-wave-5-1-experiment.md)
 defines controlled evaluation of the opt-in context profiles.
 
+The same guide describes the optional stage-typed taxonomy: `spec-survey` and
+`spec-deep` emphasize structure, `plan-impact` and `plan-deep` emphasize
+changes, `build-work` and `build-deep` emphasize implementation evidence, and
+`review-diff` and `review-grounded` emphasize comparison evidence. These are
+bounded advisory recipes that can be evaluated with the WAVE-5.1 methodology.
+
 Any caller may consume reports as optional advisory context. ContextPatrol remains
 independent and does not know or invoke its callers.

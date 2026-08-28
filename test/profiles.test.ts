@@ -42,6 +42,41 @@ const expectedRecipes: Record<string, ProfileRecipe> = {
   },
 };
 
+const stageTypedRecipes: Record<string, ProfileRecipe> = {
+  "spec-survey": {
+    facets: ["structure", "symbols"],
+    maxOutputBytes: 12800,
+  },
+  "spec-deep": {
+    facets: ["structure", "symbols", "relations"],
+    maxOutputBytes: 19200,
+  },
+  "plan-impact": {
+    facets: ["changes", "symbols", "relations", "tests"],
+    maxOutputBytes: 19200,
+  },
+  "plan-deep": {
+    facets: ["changes", "symbols", "relations", "source", "tests"],
+    maxOutputBytes: 24000,
+  },
+  "build-work": {
+    facets: ["symbols", "source", "tests"],
+    maxOutputBytes: 19200,
+  },
+  "build-deep": {
+    facets: ["symbols", "relations", "source", "tests"],
+    maxOutputBytes: 24000,
+  },
+  "review-diff": {
+    facets: ["changes", "symbols", "relations"],
+    maxOutputBytes: 12800,
+  },
+  "review-grounded": {
+    facets: ["changes", "symbols", "relations", "source", "tests"],
+    maxOutputBytes: 19200,
+  },
+};
+
 const existingProfiles: Record<string, ProfileRecipe> = {
   orientation: {
     facets: ["structure", "symbols", "relations"],
@@ -61,13 +96,13 @@ const existingProfiles: Record<string, ProfileRecipe> = {
   },
 };
 
-const existingDefaults = {
-  spec: "orientation",
-  "spec-review": "orientation",
-  plan: "implementation",
-  "plan-review": "impact",
-  build: "implementation",
-  "build-review": "impact",
+const stageTypedDefaults = {
+  spec: "spec-survey",
+  "spec-review": "spec-deep",
+  plan: "plan-impact",
+  "plan-review": "review-diff",
+  build: "build-work",
+  "build-review": "review-grounded",
   ship: "readiness",
 };
 
@@ -141,11 +176,96 @@ function assertPublicReport(report: ContextReport): void {
 
 test("WAVE-5.1 recipes are additive and exact", () => {
   const config = loadConfig();
-  assert.deepEqual(config.contextPatrol.profiles, {
-    ...existingProfiles,
-    ...expectedRecipes,
+  const legacyRecipes = { ...existingProfiles, ...expectedRecipes };
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.keys(legacyRecipes).map((name) => [
+        name,
+        config.contextPatrol.profiles[name],
+      ]),
+    ),
+    legacyRecipes,
+  );
+});
+
+test("WAVE-6.3 profiles are additive and exact", () => {
+  const config = loadConfig();
+  assert.deepEqual(
+    Object.keys(config.contextPatrol.profiles).sort(),
+    [
+      ...Object.keys(existingProfiles),
+      ...Object.keys(expectedRecipes),
+      ...Object.keys(stageTypedRecipes),
+    ].sort(),
+  );
+  for (const [name, recipe] of Object.entries(stageTypedRecipes)) {
+    assert.deepEqual(config.contextPatrol.profiles[name], recipe);
+  }
+});
+
+test("WAVE-6.3 defaults are stage-matched and resolvable", () => {
+  const config = loadConfig();
+  assert.deepEqual(config.contextPatrol.defaults, stageTypedDefaults);
+  for (const profileName of Object.values(config.contextPatrol.defaults)) {
+    assert.ok(config.contextPatrol.profiles[profileName]);
+  }
+});
+
+for (const [name, expectedRecipe] of Object.entries(stageTypedRecipes)) {
+  test(`WAVE-6.3 ${name} is bounded and repeatable`, async () => {
+    const config = loadConfig();
+    const recipe = config.contextPatrol.profiles[name];
+    assert.deepEqual(recipe, expectedRecipe);
+    const { workspace, baseline, target } = createFixtureRepository();
+    try {
+      const request = {
+        schemaVersion: 1 as const,
+        workspace,
+        query: "validate token authorize",
+        facets: [...recipe.facets],
+        maxOutputBytes: recipe.maxOutputBytes,
+        target: { kind: "commit" as const, oid: target },
+        baseline: { oid: baseline },
+      };
+      const first = await queryContext(request);
+      const second = await queryContext({ ...request, facets: [...recipe.facets] });
+      assert.deepEqual(first, second);
+      assert.equal(first.reportDigest, second.reportDigest);
+      assert.equal(first.budget.maxOutputBytes, expectedRecipe.maxOutputBytes);
+      assert.ok(first.budget.outputBytes >= 1);
+      assert.ok(first.budget.outputBytes <= expectedRecipe.maxOutputBytes);
+      assertPublicReport(first);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
   });
-  assert.deepEqual(config.contextPatrol.defaults, existingDefaults);
+}
+
+test("all legacy profiles remain deterministic", async () => {
+  const legacyRecipes = { ...existingProfiles, ...expectedRecipes };
+  const { workspace, baseline, target } = createFixtureRepository();
+  try {
+    for (const [name, recipe] of Object.entries(legacyRecipes)) {
+      const request = {
+        schemaVersion: 1 as const,
+        workspace,
+        query: "validate token authorize",
+        facets: [...recipe.facets],
+        maxOutputBytes: recipe.maxOutputBytes,
+        target: { kind: "commit" as const, oid: target },
+        baseline: { oid: baseline },
+      };
+      const first = await queryContext(request);
+      const second = await queryContext({ ...request, facets: [...recipe.facets] });
+      assert.deepEqual(first, second, `${name} report is not repeatable`);
+      assert.equal(first.reportDigest, second.reportDigest);
+      assert.equal(first.budget.maxOutputBytes, recipe.maxOutputBytes);
+      assert.ok(first.budget.outputBytes <= recipe.maxOutputBytes);
+      assertPublicReport(first);
+    }
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });
 
 test("WAVE-5.1 reports are repeatable, bounded, and facet-specific", async () => {
