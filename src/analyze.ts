@@ -95,6 +95,8 @@ export async function queryContext(
       ((request.ranking.boostIdents?.length ?? 0) > 0 ||
         (request.ranking.boostPaths?.length ?? 0) > 0 ||
         (request.ranking.dampenPaths?.length ?? 0) > 0);
+    const includeSectionDigests = request.includeSectionDigests === true;
+    const budgetOptions = { includeSectionDigests };
     const report: Omit<ContextReport, "reportDigest"> = {
       schemaVersion: 1,
       provider: { name: PROVIDER_NAME, version: PROVIDER_VERSION },
@@ -155,7 +157,7 @@ export async function queryContext(
       testGaps: tests.changedSourceWithoutTest.length,
       unresolvedRelations,
     };
-    while (refreshBudget(report, available) > request.maxOutputBytes) {
+    while (refreshBudget(report, available, budgetOptions) > request.maxOutputBytes) {
       const unchangedFile = report.files.findLastIndex(
         (file) => !changedPaths.has(file.path),
       );
@@ -178,9 +180,9 @@ export async function queryContext(
         );
       report.budget.limited = true;
     }
-    refreshBudget(report, available);
+    refreshBudget(report, available, budgetOptions);
     verifySourceUnchanged(request, source.contentDigest);
-    return finalize(report);
+    return finalize(report, budgetOptions);
   } finally {
     store.close();
   }

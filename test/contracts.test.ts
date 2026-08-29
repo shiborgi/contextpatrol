@@ -118,6 +118,53 @@ test("ranking rejects unknown keys and non-object values", () => {
   );
 });
 
+test("includeSectionDigests is optional, strict, and normalizes false to omission", () => {
+  assert.equal(
+    validateQueryRequest({ ...request, includeSectionDigests: true })
+      .includeSectionDigests,
+    true,
+  );
+  assert.equal(
+    validateQueryRequest({ ...request, includeSectionDigests: false })
+      .includeSectionDigests,
+    undefined,
+  );
+  assert.equal(validateQueryRequest(request).includeSectionDigests, undefined);
+  assert.throws(
+    () => validateQueryRequest({ ...request, includeSectionDigests: "yes" }),
+    /includeSectionDigests must be a boolean/,
+  );
+  assert.throws(
+    () => validateQueryRequest({ ...request, includeSectionDigests: 1 }),
+    /includeSectionDigests must be a boolean/,
+  );
+  assert.throws(
+    () => validateQueryRequest({ ...request, includeSectionDigest: true }),
+    /unknown properties: includeSectionDigest/,
+  );
+});
+
+test("normalized public request excludes orchestration and selection fields", () => {
+  for (const field of ["lifecycle", "execution", "candidate", "score", "selection"]) {
+    assert.throws(
+      () => validateQueryRequest({ ...request, [field]: "x" }),
+      new RegExp(`unknown properties: ${field}`),
+    );
+  }
+  const parsed = validateQueryRequest(request);
+  const keys = Object.keys(parsed);
+  for (const forbidden of [
+    "lifecycle",
+    "execution",
+    "candidate",
+    "score",
+    "ranking",
+    "selection",
+  ]) {
+    assert.ok(!keys.includes(forbidden), `${forbidden} must not appear in the request`);
+  }
+});
+
 test("published JSON schema round-trips with contracts.ts", () => {
   const schema = JSON.parse(
     readFileSync(
@@ -134,6 +181,7 @@ test("published JSON schema round-trips with contracts.ts", () => {
     "target",
   ]);
   assert.deepEqual(schema.properties.sourceDepth.enum, [...SOURCE_DEPTHS]);
+  assert.deepEqual(schema.properties.includeSectionDigests, { type: "boolean" });
   assert.equal(schema.properties.ranking.additionalProperties, false);
   assert.deepEqual(Object.keys(schema.properties.ranking.properties).sort(), [
     "boostIdents",
@@ -154,6 +202,7 @@ test("published JSON schema round-trips with contracts.ts", () => {
       ...request,
       ranking: { boostIdents: ["token"], boostPaths: ["src"], dampenPaths: ["vendor"] },
     }),
+    validateQueryRequest({ ...request, includeSectionDigests: true }),
   ];
   for (const parsed of accepted) {
     for (const key of Object.keys(parsed)) {

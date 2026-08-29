@@ -261,6 +261,7 @@ test("all legacy profiles remain deterministic", async () => {
       assert.equal(first.reportDigest, second.reportDigest);
       assert.equal(first.budget.maxOutputBytes, recipe.maxOutputBytes);
       assert.ok(first.budget.outputBytes <= recipe.maxOutputBytes);
+      assert.equal(first.sectionDigests, undefined);
       assertPublicReport(first);
     }
   } finally {

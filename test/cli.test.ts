@@ -225,3 +225,44 @@ test("query stdin accepts a single well-formed request", async () => {
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("query stdin honors opted-in section digests", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "ok.ts"), "export const ok = 1;\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "ok"]);
+    const result = await runCli(
+      ["node", "contextpatrol", "query", "--input", "-"],
+      async () =>
+        Buffer.from(
+          JSON.stringify({
+            schemaVersion: 1,
+            workspace,
+            query: "ok",
+            facets: ["symbols"],
+            maxOutputBytes: 2048,
+            target: { kind: "working-tree" },
+            includeSectionDigests: true,
+          }),
+        ),
+    );
+    assert.equal(result.exitCode, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(Object.keys(report.sectionDigests).sort(), [
+      "changes",
+      "coverage",
+      "files",
+      "relations",
+      "snippets",
+      "symbols",
+      "tests",
+    ]);
+    assert.match(report.sectionDigests.symbols, /^sha256:[a-f0-9]{64}$/);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});

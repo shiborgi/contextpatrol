@@ -102,6 +102,28 @@
         "omittedSnippets": { "type": "integer", "minimum": 0 },
         "unresolvedRelations": { "type": "integer", "minimum": 0 }
       }
+    },
+    "sectionDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changes",
+        "coverage",
+        "files",
+        "relations",
+        "snippets",
+        "symbols",
+        "tests"
+      ],
+      "properties": {
+        "changes": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "coverage": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "files": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "relations": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "snippets": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "symbols": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "tests": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
     }
   }
 }

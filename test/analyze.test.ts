@@ -284,3 +284,151 @@ test("ranking and sourceDepth compose deterministically end to end", async () =>
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("section digests are stable across repeated full and limited runs", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "a.ts"), "export function a() {}\n");
+    writeFileSync(path.join(workspace, "b.ts"), "export function b() {}\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const base = {
+      schemaVersion: 1 as const,
+      workspace,
+      query: "a b",
+      facets: ["structure", "symbols", "relations", "source"] as const,
+      maxOutputBytes: 8_192,
+      target: { kind: "working-tree" as const },
+      includeSectionDigests: true as const,
+    };
+    const full1 = await queryContext({ ...base, facets: [...base.facets] });
+    const full2 = await queryContext({ ...base, facets: [...base.facets] });
+    assert.deepEqual(full1.sectionDigests, full2.sectionDigests);
+    assert.equal(full1.reportDigest, full2.reportDigest);
+    assert.ok(full1.sectionDigests);
+    for (const key of [
+      "changes",
+      "coverage",
+      "files",
+      "relations",
+      "snippets",
+      "symbols",
+      "tests",
+    ]) {
+      assert.match(
+        full1.sectionDigests[key as keyof typeof full1.sectionDigests],
+        /^sha256:[a-f0-9]{64}$/,
+      );
+    }
+    const narrow = await queryContext({
+      ...base,
+      facets: [...base.facets],
+      maxOutputBytes: 1_600,
+    });
+    assert.equal(narrow.budget.limited, true);
+    const narrow2 = await queryContext({
+      ...base,
+      facets: [...base.facets],
+      maxOutputBytes: 1_600,
+    });
+    assert.equal(narrow.reportDigest, narrow2.reportDigest);
+    assert.deepEqual(narrow.sectionDigests, narrow2.sectionDigests);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("opted-in and legacy outputs differ only by the section digest block", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "a.ts"), "export function a() {}\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const plain = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "a",
+      facets: ["structure", "symbols"],
+      maxOutputBytes: 4_096,
+      target: { kind: "working-tree" },
+    });
+    const opted = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "a",
+      facets: ["structure", "symbols"],
+      maxOutputBytes: 4_096,
+      target: { kind: "working-tree" },
+      includeSectionDigests: true,
+    });
+    assert.ok(opted.sectionDigests);
+    const {
+      sectionDigests,
+      reportDigest: optedDigest,
+      requestDigest: optedRequestDigest,
+      budget: optedBudget,
+      ...optedRest
+    } = opted;
+    const {
+      reportDigest: plainDigest,
+      requestDigest: plainRequestDigest,
+      budget: plainBudget,
+      ...plainRest
+    } = plain;
+    assert.deepEqual(optedRest, plainRest);
+    assert.deepEqual(
+      { ...optedBudget, outputBytes: 0 },
+      { ...plainBudget, outputBytes: 0 },
+    );
+    assert.notEqual(optedRequestDigest, plainRequestDigest);
+    assert.ok(optedBudget.outputBytes > plainBudget.outputBytes);
+    assert.notEqual(optedDigest, plainDigest);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("repeated dirty runs change only the changed section digest", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    writeFileSync(path.join(workspace, "a.ts"), "export function a() {}\n");
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const request = {
+      schemaVersion: 1 as const,
+      workspace,
+      query: "a",
+      facets: ["structure", "symbols", "source"] as const,
+      maxOutputBytes: 4_096,
+      target: { kind: "working-tree" as const },
+      includeSectionDigests: true as const,
+    };
+    const first = await queryContext({ ...request, facets: [...request.facets] });
+    writeFileSync(path.join(workspace, "a.ts"), "export function a() { return 1; }\n");
+    const second = await queryContext({ ...request, facets: [...request.facets] });
+    assert.ok(first.sectionDigests);
+    assert.ok(second.sectionDigests);
+    const changed = new Set<string>();
+    const keys = Object.keys(first.sectionDigests) as Array<
+      keyof NonNullable<typeof first.sectionDigests>
+    >;
+    for (const key of keys) {
+      if (first.sectionDigests[key] !== second.sectionDigests[key]) changed.add(key);
+    }
+    assert.ok(changed.size > 0, "at least one section digest must change");
+    for (const stable of ["changes", "coverage", "relations", "tests"]) {
+      assert.ok(!changed.has(stable), `${stable} digest must remain unchanged`);
+    }
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});

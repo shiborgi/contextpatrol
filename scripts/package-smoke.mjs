@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +16,32 @@ function run(command, args, options = {}) {
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return result.stdout;
+}
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) =>
+          Buffer.compare(Buffer.from(left), Buffer.from(right)),
+        )
+        .map(([key, item]) => [key, canonicalize(item)]),
+    );
+  }
+  return value;
+}
+function digest(value) {
+  return `sha256:${createHash("sha256")
+    .update(JSON.stringify(canonicalize(value)))
+    .digest("hex")}`;
+}
+function sectionDigest(section, value) {
+  return digest({
+    domain: "contextpatrol.section-digest.v1",
+    schemaVersion: 1,
+    section,
+    value,
+  });
 }
 try {
   const packed = JSON.parse(
@@ -69,6 +96,27 @@ try {
   run(process.execPath, ["--input-type=module", "--eval", "import('contextpatrol')"], {
     cwd: installRoot,
   });
+
+  const opted = JSON.parse(
+    run(executable, ["query", "--input", "-"], {
+      input: JSON.stringify({
+        schemaVersion: 1,
+        workspace,
+        query: "greet",
+        facets: ["symbols", "source"],
+        maxOutputBytes: 8_192,
+        target: { kind: "working-tree" },
+        includeSectionDigests: true,
+      }),
+    }),
+  );
+  assert.ok(opted.budget.outputBytes <= 8_192);
+  assert.equal(opted.sectionDigests.symbols, sectionDigest("symbols", opted.symbols));
+  assert.equal(
+    opted.sectionDigests.snippets,
+    sectionDigest("snippets", opted.snippets),
+  );
+  assert.equal(opted.sectionDigests.changes, sectionDigest("changes", opted.changes));
   process.stdout.write("packed install smoke passed\n");
 } finally {
   await rm(temporary, { recursive: true, force: true });

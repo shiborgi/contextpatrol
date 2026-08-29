@@ -36,6 +36,7 @@ export interface QueryRequest {
   excludePaths?: string[];
   sourceDepth?: SourceDepth;
   ranking?: RankingHints;
+  includeSectionDigests?: boolean;
 }
 
 export interface SourceFile {
@@ -113,5 +114,14 @@ export interface ContextReport {
     omittedRelations: number;
     omittedSnippets: number;
     unresolvedRelations: number;
+  };
+  sectionDigests?: {
+    changes: string;
+    coverage: string;
+    files: string;
+    relations: string;
+    snippets: string;
+    symbols: string;
+    tests: string;
   };
 }

@@ -99,6 +99,7 @@ export function validateQueryRequest(value: unknown): QueryRequest {
         "excludePaths",
         "sourceDepth",
         "ranking",
+        "includeSectionDigests",
       ],
       ["schemaVersion", "workspace", "query", "facets", "maxOutputBytes", "target"],
       "query request",
@@ -154,6 +155,12 @@ export function validateQueryRequest(value: unknown): QueryRequest {
     const excludePaths = paths(value.excludePaths, "query request.excludePaths");
     const requestedDepth = sourceDepth(value.sourceDepth, "query request.sourceDepth");
     const rankingHints = ranking(value.ranking, "query request.ranking");
+    let includeSectionDigests: boolean | undefined;
+    if (value.includeSectionDigests !== undefined) {
+      if (typeof value.includeSectionDigests !== "boolean")
+        throw new Error("query request.includeSectionDigests must be a boolean");
+      if (value.includeSectionDigests === true) includeSectionDigests = true;
+    }
     return {
       schemaVersion: 1,
       workspace,
@@ -169,6 +176,7 @@ export function validateQueryRequest(value: unknown): QueryRequest {
       ...(excludePaths ? { excludePaths } : {}),
       ...(requestedDepth ? { sourceDepth: requestedDepth } : {}),
       ...(rankingHints ? { ranking: rankingHints } : {}),
+      ...(includeSectionDigests ? { includeSectionDigests } : {}),
     };
   } catch (error) {
     if (error instanceof ContextPatrolError) throw error;
