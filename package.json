@@ -31,6 +31,7 @@
     "dist/",
     "!dist/test/",
     "schemas/",
+    "docs/contextpatrol-section-digests.md",
     "README.md",
     "SECURITY.md",
     "LICENSE",

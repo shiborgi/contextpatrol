@@ -94,6 +94,53 @@ Both fields are part of the canonical request, so they are covered by
 `requestDigest` and repeatable byte-for-byte. A request that omits them behaves
 exactly as before.
 
+## Section Digests
+
+The optional boolean `includeSectionDigests` requests a strict `sectionDigests`
+object in the report. It is an additive opt-in capability; omitting it, or
+setting it to `false`, preserves the legacy canonical request, `requestDigest`,
+and report bytes exactly.
+
+```json
+{
+  "schemaVersion": 1,
+  "workspace": "/absolute/path/to/repository",
+  "query": "locate token validation and its callers",
+  "facets": ["structure", "symbols", "relations", "source"],
+  "maxOutputBytes": 9600,
+  "target": { "kind": "working-tree" },
+  "includeSectionDigests": true
+}
+```
+
+When opted in, the report appends a `sectionDigests` object with exactly seven
+keys in lexical order, one per report section:
+
+```json
+{
+  "sectionDigests": {
+    "changes": "sha256:...",
+    "coverage": "sha256:...",
+    "files": "sha256:...",
+    "relations": "sha256:...",
+    "snippets": "sha256:...",
+    "symbols": "sha256:...",
+    "tests": "sha256:..."
+  }
+}
+```
+
+Every key is always present when the switch is on. A facet that was not
+requested is emitted as its existing empty value, and that empty value is what
+is hashed. Digests are computed from the final emitted section values after
+budget finalization, so each digest describes exactly the corresponding
+consumer-visible section. The `sectionDigests` object participates in the
+output budget and in `reportDigest`.
+
+The [section-digest protocol reference](docs/contextpatrol-section-digests.md)
+defines the exact preimage, canonical JSON rules, self-reference behavior, and
+the limits of what equality proves.
+
 ## Integration
 
 The 1.0.0 integration uses process boundaries only. CodePatrol invokes

@@ -12,6 +12,9 @@
   symbol terms.
 - Adopt family documentation, GitHub issue and pull-request templates, matrix
   CI, and Biome 2.5.8.
+- Add an opt-in `includeSectionDigests` request field that appends a strict
+  `sectionDigests` object of SHA-256 fingerprints for the emitted report
+  sections, with a [protocol reference](docs/contextpatrol-section-digests.md).
 
 ## 1.0.0
 
