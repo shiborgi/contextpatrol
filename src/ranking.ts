@@ -2,9 +2,17 @@ import { compareText } from "./json.js";
 import type { CachedFacts, RankingHints, SourceFile } from "./types.js";
 
 export function queryTerms(query: string): string[] {
-  return [...new Set(query.toLowerCase().match(/[a-z0-9_]{2,}/g) ?? [])].sort(
-    compareText,
-  );
+  const tokens = query.match(/[A-Za-z0-9_]{2,}/g) ?? [];
+  const terms = new Set<string>();
+  for (const token of tokens) {
+    terms.add(token.toLowerCase());
+    for (const piece of token.split(
+      /_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/,
+    )) {
+      if (piece.length >= 2) terms.add(piece.toLowerCase());
+    }
+  }
+  return [...terms].sort(compareText);
 }
 
 export function score(

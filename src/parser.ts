@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { Language, type Node, Parser } from "web-tree-sitter";
 import { compareText } from "./json.js";
+import { queryTerms } from "./ranking.js";
 import type { CachedFacts, SourceFile } from "./types.js";
 
 const require = createRequire(import.meta.url);
@@ -42,9 +43,7 @@ let initialized: Promise<void> | undefined;
 const languages = new Map<string, Language>();
 
 function terms(value: string): string[] {
-  return [...new Set(value.toLowerCase().match(/[a-z0-9_]{2,}/g) ?? [])].sort(
-    compareText,
-  );
+  return queryTerms(value);
 }
 
 function importSpecifiers(content: string): string[] {

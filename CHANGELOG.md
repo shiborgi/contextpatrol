@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-- Add five opt-in WAVE-5.1 context recipes and a [controlled experiment
-  guide](docs/contextpatrol-wave-5-1-experiment.md).
-- Add eight opt-in stage-typed recipes: `spec-survey`, `spec-deep`, `plan-impact`,
-  `plan-deep`, `build-work`, `build-deep`, `review-diff`, and `review-grounded`.
+- Keep only stage-typed recipes plus `readiness`. Drop unused aliases
+  (`orientation`, `implementation`, `impact`, and the WAVE-5.1 wide/grounded
+  names). `spec-survey` now includes signature excerpts; `review-diff` includes
+  test signals; plan defaults to `plan-deep`.
+- Split camelCase and underscored identifiers in query terms.
+- Add a [controlled experiment
+  guide](docs/contextpatrol-wave-5-1-experiment.md) for the remaining recipes.
 - Add optional `sourceDepth` and `ranking` request fields with deterministic,
   bounded behavior.
 - Rank files using query-term hits in file content as well as path and declared

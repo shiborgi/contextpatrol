@@ -83,6 +83,12 @@ test("boostIdents extend the term set through queryTerms normalization", () => {
     score(sample, empty, terms, false, { boostIdents: ["Validate-Token!"] }) > 0,
   );
   assert.deepEqual(queryTerms("Validate-Token!"), ["token", "validate"]);
+  assert.deepEqual(queryTerms("validateToken"), ["token", "validate", "validatetoken"]);
+  assert.deepEqual(queryTerms("validate_token"), [
+    "token",
+    "validate",
+    "validate_token",
+  ]);
 });
 
 test("boostPaths multiply relevance by path prefix", () => {

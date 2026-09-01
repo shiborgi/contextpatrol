@@ -5,11 +5,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { queryContext } from "../src/analyze.js";
-import type { ContextReport, Facet } from "../src/types.js";
+import type { ContextReport, Facet, SourceDepth } from "../src/types.js";
 
 interface ProfileRecipe {
   facets: Facet[];
   maxOutputBytes: number;
+  sourceDepth?: SourceDepth;
 }
 
 interface Config {
@@ -19,33 +20,15 @@ interface Config {
   };
 }
 
-const expectedRecipes: Record<string, ProfileRecipe> = {
-  "orientation-wide": {
-    facets: ["structure", "symbols", "relations"],
-    maxOutputBytes: 19200,
-  },
-  "orientation-grounded": {
-    facets: ["structure", "symbols", "relations", "source"],
-    maxOutputBytes: 19200,
-  },
-  "implementation-deep": {
-    facets: ["symbols", "relations", "source", "tests"],
-    maxOutputBytes: 24000,
-  },
-  "impact-wide": {
-    facets: ["changes", "symbols", "relations", "tests"],
-    maxOutputBytes: 24000,
-  },
-  "impact-grounded": {
-    facets: ["changes", "symbols", "relations", "source", "tests"],
-    maxOutputBytes: 24000,
-  },
-};
-
 const stageTypedRecipes: Record<string, ProfileRecipe> = {
+  readiness: {
+    facets: ["changes", "tests", "relations"],
+    maxOutputBytes: 9600,
+  },
   "spec-survey": {
-    facets: ["structure", "symbols"],
+    facets: ["structure", "symbols", "source"],
     maxOutputBytes: 12800,
+    sourceDepth: "signatures",
   },
   "spec-deep": {
     facets: ["structure", "symbols", "relations"],
@@ -68,7 +51,7 @@ const stageTypedRecipes: Record<string, ProfileRecipe> = {
     maxOutputBytes: 24000,
   },
   "review-diff": {
-    facets: ["changes", "symbols", "relations"],
+    facets: ["changes", "symbols", "relations", "tests"],
     maxOutputBytes: 12800,
   },
   "review-grounded": {
@@ -77,29 +60,10 @@ const stageTypedRecipes: Record<string, ProfileRecipe> = {
   },
 };
 
-const existingProfiles: Record<string, ProfileRecipe> = {
-  orientation: {
-    facets: ["structure", "symbols", "relations"],
-    maxOutputBytes: 9600,
-  },
-  implementation: {
-    facets: ["symbols", "relations", "source", "tests"],
-    maxOutputBytes: 14400,
-  },
-  impact: {
-    facets: ["changes", "symbols", "relations", "tests"],
-    maxOutputBytes: 14400,
-  },
-  readiness: {
-    facets: ["changes", "tests", "relations"],
-    maxOutputBytes: 9600,
-  },
-};
-
 const stageTypedDefaults = {
   spec: "spec-survey",
   "spec-review": "spec-deep",
-  plan: "plan-impact",
+  plan: "plan-deep",
   "plan-review": "review-diff",
   build: "build-work",
   "build-review": "review-grounded",
@@ -174,36 +138,36 @@ function assertPublicReport(report: ContextReport): void {
   assert.doesNotMatch(JSON.stringify(report), /lifecycle|caller|agent/i);
 }
 
-test("WAVE-5.1 recipes are additive and exact", () => {
-  const config = loadConfig();
-  const legacyRecipes = { ...existingProfiles, ...expectedRecipes };
-  assert.deepEqual(
-    Object.fromEntries(
-      Object.keys(legacyRecipes).map((name) => [
-        name,
-        config.contextPatrol.profiles[name],
-      ]),
-    ),
-    legacyRecipes,
-  );
-});
+function requestFor(
+  recipe: ProfileRecipe,
+  workspace: string,
+  baseline: string,
+  target: string,
+) {
+  return {
+    schemaVersion: 1 as const,
+    workspace,
+    query: "validate token authorize",
+    facets: [...recipe.facets],
+    maxOutputBytes: recipe.maxOutputBytes,
+    target: { kind: "commit" as const, oid: target },
+    baseline: { oid: baseline },
+    ...(recipe.sourceDepth ? { sourceDepth: recipe.sourceDepth } : {}),
+  };
+}
 
-test("WAVE-6.3 profiles are additive and exact", () => {
+test("stage-typed catalog is exact", () => {
   const config = loadConfig();
   assert.deepEqual(
     Object.keys(config.contextPatrol.profiles).sort(),
-    [
-      ...Object.keys(existingProfiles),
-      ...Object.keys(expectedRecipes),
-      ...Object.keys(stageTypedRecipes),
-    ].sort(),
+    Object.keys(stageTypedRecipes).sort(),
   );
   for (const [name, recipe] of Object.entries(stageTypedRecipes)) {
     assert.deepEqual(config.contextPatrol.profiles[name], recipe);
   }
 });
 
-test("WAVE-6.3 defaults are stage-matched and resolvable", () => {
+test("stage-typed defaults are resolvable", () => {
   const config = loadConfig();
   assert.deepEqual(config.contextPatrol.defaults, stageTypedDefaults);
   for (const profileName of Object.values(config.contextPatrol.defaults)) {
@@ -212,23 +176,18 @@ test("WAVE-6.3 defaults are stage-matched and resolvable", () => {
 });
 
 for (const [name, expectedRecipe] of Object.entries(stageTypedRecipes)) {
-  test(`WAVE-6.3 ${name} is bounded and repeatable`, async () => {
+  test(`${name} is bounded and repeatable`, async () => {
     const config = loadConfig();
     const recipe = config.contextPatrol.profiles[name];
     assert.deepEqual(recipe, expectedRecipe);
     const { workspace, baseline, target } = createFixtureRepository();
     try {
-      const request = {
-        schemaVersion: 1 as const,
-        workspace,
-        query: "validate token authorize",
-        facets: [...recipe.facets],
-        maxOutputBytes: recipe.maxOutputBytes,
-        target: { kind: "commit" as const, oid: target },
-        baseline: { oid: baseline },
-      };
+      const request = requestFor(recipe, workspace, baseline, target);
       const first = await queryContext(request);
-      const second = await queryContext({ ...request, facets: [...recipe.facets] });
+      const second = await queryContext({
+        ...request,
+        facets: [...recipe.facets],
+      });
       assert.deepEqual(first, second);
       assert.equal(first.reportDigest, second.reportDigest);
       assert.equal(first.budget.maxOutputBytes, expectedRecipe.maxOutputBytes);
@@ -241,117 +200,105 @@ for (const [name, expectedRecipe] of Object.entries(stageTypedRecipes)) {
   });
 }
 
-test("all legacy profiles remain deterministic", async () => {
-  const legacyRecipes = { ...existingProfiles, ...expectedRecipes };
-  const { workspace, baseline, target } = createFixtureRepository();
-  try {
-    for (const [name, recipe] of Object.entries(legacyRecipes)) {
-      const request = {
-        schemaVersion: 1 as const,
-        workspace,
-        query: "validate token authorize",
-        facets: [...recipe.facets],
-        maxOutputBytes: recipe.maxOutputBytes,
-        target: { kind: "commit" as const, oid: target },
-        baseline: { oid: baseline },
-      };
-      const first = await queryContext(request);
-      const second = await queryContext({ ...request, facets: [...recipe.facets] });
-      assert.deepEqual(first, second, `${name} report is not repeatable`);
-      assert.equal(first.reportDigest, second.reportDigest);
-      assert.equal(first.budget.maxOutputBytes, recipe.maxOutputBytes);
-      assert.ok(first.budget.outputBytes <= recipe.maxOutputBytes);
-      assert.equal(first.sectionDigests, undefined);
-      assertPublicReport(first);
-    }
-  } finally {
-    rmSync(workspace, { recursive: true, force: true });
-  }
-});
-
-test("WAVE-5.1 reports are repeatable, bounded, and facet-specific", async () => {
+test("stage-typed reports are facet-specific", async () => {
   const config = loadConfig();
-  const recipes: Record<string, ProfileRecipe> = {};
-  for (const name of Object.keys(expectedRecipes)) {
-    const recipe = config.contextPatrol.profiles[name];
-    assert.ok(recipe, `missing configured recipe: ${name}`);
-    recipes[name] = recipe;
-  }
   const { workspace, baseline, target } = createFixtureRepository();
   try {
     const reports = new Map<string, ContextReport>();
-    for (const [name, recipe] of Object.entries(recipes)) {
-      const request = {
-        schemaVersion: 1 as const,
-        workspace,
-        query: "validate token authorize",
-        facets: [...recipe.facets],
-        maxOutputBytes: recipe.maxOutputBytes,
-        target: { kind: "commit" as const, oid: target },
-        baseline: { oid: baseline },
-      };
+    for (const [name, recipe] of Object.entries(stageTypedRecipes)) {
+      assert.deepEqual(config.contextPatrol.profiles[name], recipe);
+      const request = requestFor(recipe, workspace, baseline, target);
       const first = await queryContext(request);
-      const second = await queryContext({ ...request, facets: [...recipe.facets] });
+      const second = await queryContext({
+        ...request,
+        facets: [...recipe.facets],
+      });
       assert.deepEqual(first, second, `${name} report is not repeatable`);
-      assert.equal(first.reportDigest, second.reportDigest);
-      assert.equal(first.budget.maxOutputBytes, recipe.maxOutputBytes);
-      assert.ok(first.budget.outputBytes >= 1);
-      assert.ok(first.budget.outputBytes <= recipe.maxOutputBytes);
       assertPublicReport(first);
       reports.set(name, first);
     }
 
-    const orientationWide = reports.get("orientation-wide");
-    const orientationGrounded = reports.get("orientation-grounded");
-    const implementationDeep = reports.get("implementation-deep");
-    const impactWide = reports.get("impact-wide");
-    const impactGrounded = reports.get("impact-grounded");
-    assert.ok(orientationWide);
-    assert.ok(orientationGrounded);
-    assert.ok(implementationDeep);
-    assert.ok(impactWide);
-    assert.ok(impactGrounded);
+    const specSurvey = reports.get("spec-survey");
+    const specDeep = reports.get("spec-deep");
+    const planImpact = reports.get("plan-impact");
+    const planDeep = reports.get("plan-deep");
+    const buildWork = reports.get("build-work");
+    const buildDeep = reports.get("build-deep");
+    const reviewDiff = reports.get("review-diff");
+    const reviewGrounded = reports.get("review-grounded");
+    const readiness = reports.get("readiness");
+    assert.ok(specSurvey);
+    assert.ok(specDeep);
+    assert.ok(planImpact);
+    assert.ok(planDeep);
+    assert.ok(buildWork);
+    assert.ok(buildDeep);
+    assert.ok(reviewDiff);
+    assert.ok(reviewGrounded);
+    assert.ok(readiness);
 
-    assert.ok(orientationWide.files.length > 0);
-    assert.ok(orientationWide.symbols.length > 0);
-    assert.ok(orientationWide.relations.length > 0);
-    assert.deepEqual(orientationWide.snippets, []);
-    assert.deepEqual(orientationWide.changes, []);
-    assert.deepEqual(orientationWide.tests, {
+    assert.ok(specSurvey.files.length > 0);
+    assert.ok(specSurvey.symbols.length > 0);
+    assert.ok(specSurvey.snippets.length > 0);
+    assert.deepEqual(specSurvey.relations, []);
+    assert.deepEqual(specSurvey.changes, []);
+    assert.deepEqual(specSurvey.tests, {
       files: [],
       changedSourceWithoutTest: [],
     });
 
-    assert.ok(orientationGrounded.snippets.length > 0);
-    assert.deepEqual(orientationGrounded.changes, []);
-    assert.deepEqual(orientationGrounded.tests, {
-      files: [],
-      changedSourceWithoutTest: [],
-    });
-
-    assert.deepEqual(implementationDeep.files, []);
-    assert.ok(implementationDeep.symbols.length > 0);
-    assert.ok(implementationDeep.relations.length > 0);
-    assert.ok(implementationDeep.snippets.length > 0);
-    assert.deepEqual(implementationDeep.changes, []);
-    assert.deepEqual(implementationDeep.tests, {
-      files: ["src/token.test.ts"],
-      changedSourceWithoutTest: ["src/untested.ts"],
-    });
+    assert.ok(specDeep.files.length > 0);
+    assert.ok(specDeep.symbols.length > 0);
+    assert.ok(specDeep.relations.length > 0);
+    assert.deepEqual(specDeep.snippets, []);
+    assert.deepEqual(specDeep.changes, []);
 
     const expectedChanges = [
       { path: "src/token.js", status: "modified" as const },
       { path: "src/untested.ts", status: "added" as const },
     ];
-    assert.deepEqual(impactWide.files, []);
-    assert.deepEqual(impactWide.snippets, []);
-    assert.deepEqual(impactWide.changes, expectedChanges);
-    assert.deepEqual(impactWide.tests, implementationDeep.tests);
+    const expectedTests = {
+      files: ["src/token.test.ts"],
+      changedSourceWithoutTest: ["src/untested.ts"],
+    };
 
-    assert.deepEqual(impactGrounded.files, []);
-    assert.ok(impactGrounded.snippets.length > 0);
-    assert.deepEqual(impactGrounded.changes, expectedChanges);
-    assert.deepEqual(impactGrounded.tests, implementationDeep.tests);
+    assert.deepEqual(planImpact.files, []);
+    assert.deepEqual(planImpact.snippets, []);
+    assert.deepEqual(planImpact.changes, expectedChanges);
+    assert.deepEqual(planImpact.tests, expectedTests);
+
+    assert.deepEqual(planDeep.files, []);
+    assert.ok(planDeep.snippets.length > 0);
+    assert.deepEqual(planDeep.changes, expectedChanges);
+    assert.deepEqual(planDeep.tests, expectedTests);
+
+    assert.deepEqual(buildWork.files, []);
+    assert.deepEqual(buildWork.relations, []);
+    assert.ok(buildWork.snippets.length > 0);
+    assert.deepEqual(buildWork.changes, []);
+    assert.deepEqual(buildWork.tests, expectedTests);
+
+    assert.deepEqual(buildDeep.files, []);
+    assert.ok(buildDeep.relations.length > 0);
+    assert.ok(buildDeep.snippets.length > 0);
+    assert.deepEqual(buildDeep.changes, []);
+    assert.deepEqual(buildDeep.tests, expectedTests);
+
+    assert.deepEqual(reviewDiff.files, []);
+    assert.deepEqual(reviewDiff.snippets, []);
+    assert.deepEqual(reviewDiff.changes, expectedChanges);
+    assert.deepEqual(reviewDiff.tests, expectedTests);
+
+    assert.deepEqual(reviewGrounded.files, []);
+    assert.ok(reviewGrounded.snippets.length > 0);
+    assert.deepEqual(reviewGrounded.changes, expectedChanges);
+    assert.deepEqual(reviewGrounded.tests, expectedTests);
+
+    assert.deepEqual(readiness.files, []);
+    assert.deepEqual(readiness.symbols, []);
+    assert.deepEqual(readiness.snippets, []);
+    assert.deepEqual(readiness.changes, expectedChanges);
+    assert.deepEqual(readiness.tests, expectedTests);
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }

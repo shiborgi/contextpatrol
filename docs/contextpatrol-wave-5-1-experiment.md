@@ -1,44 +1,31 @@
 # ContextPatrol WAVE-5.1 Experiment Guide
 
-This guide evaluates five opt-in ContextPatrol context recipes. It is an
-experiment plan, not a change to the query contract or a claim that one recipe
-is universally best.
+This guide evaluates ContextPatrol context recipes. It is an experiment plan,
+not a change to the query contract or a claim that one recipe is universally
+best.
 
 ## Recipe Table
 
-| Profile | Facets | Max output bytes |
-| --- | --- | ---: |
-| `orientation-wide` | `[structure, symbols, relations]` | `19200` |
-| `orientation-grounded` | `[structure, symbols, relations, source]` | `19200` |
-| `implementation-deep` | `[symbols, relations, source, tests]` | `24000` |
-| `impact-wide` | `[changes, symbols, relations, tests]` | `24000` |
-| `impact-grounded` | `[changes, symbols, relations, source, tests]` | `24000` |
-
-The profiles are opt-in. Existing profiles and defaults remain the normal
-integration choices.
-
-## Stage-typed profiles: spec, plan, build, review
-
-The stage-typed recipes are opt-in advisory combinations of the same bounded
-facets. They use the signal most relevant to a kind of analysis while omitting
-signals that can distract from that purpose. The WAVE-5.1 controlled paired
-protocol remains the evaluation methodology for comparing these recipes; the
+Stage-typed recipes are the catalog. They use the signal most relevant to a
+kind of analysis while omitting signals that can distract from that purpose.
+The WAVE-5.1 controlled paired protocol remains the evaluation methodology;
 stage names do not add metadata to a ContextPatrol request or report.
 
-| Profile | Facets | Max output bytes |
-| --- | --- | ---: |
-| `spec-survey` | `[structure, symbols]` | `12800` |
-| `spec-deep` | `[structure, symbols, relations]` | `19200` |
-| `plan-impact` | `[changes, symbols, relations, tests]` | `19200` |
-| `plan-deep` | `[changes, symbols, relations, source, tests]` | `24000` |
-| `build-work` | `[symbols, source, tests]` | `19200` |
-| `build-deep` | `[symbols, relations, source, tests]` | `24000` |
-| `review-diff` | `[changes, symbols, relations]` | `12800` |
-| `review-grounded` | `[changes, symbols, relations, source, tests]` | `19200` |
+| Profile | Facets | Depth | Max output bytes |
+| --- | --- | --- | ---: |
+| `spec-survey` | `[structure, symbols, source]` | `signatures` | `12800` |
+| `spec-deep` | `[structure, symbols, relations]` | | `19200` |
+| `plan-impact` | `[changes, symbols, relations, tests]` | | `19200` |
+| `plan-deep` | `[changes, symbols, relations, source, tests]` | | `24000` |
+| `build-work` | `[symbols, source, tests]` | | `19200` |
+| `build-deep` | `[symbols, relations, source, tests]` | | `24000` |
+| `review-diff` | `[changes, symbols, relations, tests]` | | `12800` |
+| `review-grounded` | `[changes, symbols, relations, source, tests]` | | `19200` |
+| `readiness` | `[changes, tests, relations]` | | `9600` |
 
 The spec recipes emphasize repository shape and declared symbols. `spec-survey`
-omits relations and source excerpts to keep the initial map focused, while
-`spec-deep` adds relations for a more connected structural view. The plan
+adds signature excerpts and omits relations to keep the initial map focused,
+while `spec-deep` adds relations for a more connected structural view. The plan
 recipes emphasize changes, dependencies, and test signals; `plan-impact` omits
 source excerpts to reduce detail that can obscure change boundaries, while
 `plan-deep` adds source for cases that need implementation evidence.
@@ -46,22 +33,23 @@ source excerpts to reduce detail that can obscure change boundaries, while
 The build recipes emphasize symbols, source, and tests. `build-work` omits
 relations to leave more budget for implementation excerpts, while `build-deep`
 adds relations when dependency context is useful. The review recipes emphasize
-changes and relations. `review-diff` omits source and tests for a compact
-structural comparison, while `review-grounded` adds both signals for a broader
-evidence set. All eight recipes remain bounded and advisory; none is required
-or authoritative.
+changes and relations. `review-diff` includes test signals for a compact
+structural comparison, while `review-grounded` adds source excerpts for a
+broader evidence set. `readiness` is the ship recipe: changes, tests, and
+relations only. All recipes remain bounded and advisory; none is required or
+authoritative.
 
 ## Intended Evidence
 
 The experiment is intended to establish whether the recipes provide useful,
 distinct evidence for three context needs:
 
-- Orientation recipes should expose a stable structural map, with
-  `orientation-grounded` adding source excerpts without changing its budget.
-- `implementation-deep` should combine symbols, relations, source excerpts,
-  and test signals for implementation work.
-- Impact recipes should distinguish changed paths and test gaps, with
-  `impact-grounded` adding source excerpts without changing its budget.
+- Spec recipes should expose a stable structural map, with `spec-survey`
+  adding signature excerpts without relations.
+- Build recipes should combine symbols, source excerpts, and test signals
+  for implementation work.
+- Plan and review recipes should distinguish changed paths and test gaps,
+  with `plan-deep` and `review-grounded` adding source excerpts.
 
 Evidence should come from fixed repository snapshots and externally verifiable
 task outcomes. A report that is larger, more detailed, or preferred by a human
@@ -72,9 +60,8 @@ is not by itself evidence of better task support.
 1. Freeze a repository snapshot, its baseline commit, a task set, and one query
    per task before collecting results. Use the same target and baseline for
    every recipe in a pair.
-2. Compare `orientation-wide` with `orientation-grounded`, and
-   `impact-wide` with `impact-grounded`. Run `implementation-deep` against the
-   same tasks as a depth reference.
+2. Compare `spec-survey` with `spec-deep`, `plan-impact` with `plan-deep`,
+   `build-work` with `build-deep`, and `review-diff` with `review-grounded`.
 3. Keep the task wording, source include/exclude paths, output budget, model,
    tool permissions, and acceptance tests fixed within each pair. Do not add
    profile or experiment metadata to a ContextPatrol request.

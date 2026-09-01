@@ -7,7 +7,7 @@ import type { CachedFacts } from "./types.js";
 
 export type { CachedFacts } from "./types.js";
 
-const PARSER_VERSION = "tree-sitter-v1";
+const PARSER_VERSION = "tree-sitter-v2";
 
 function cachePath(root: string): string {
   const base = process.env.XDG_CACHE_HOME ?? path.join(homedir(), ".cache");
