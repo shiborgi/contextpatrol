@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 const LANGUAGE_ASSETS: Record<string, string> = {
   c: "tree-sitter-c.wasm",
   cs: "tree-sitter-c_sharp.wasm",
+  css: "tree-sitter-css.wasm",
   go: "tree-sitter-go.wasm",
   java: "tree-sitter-java.wasm",
   js: "tree-sitter-javascript.wasm",
@@ -37,6 +38,12 @@ const DECLARATIONS = new Set([
   "trait_item",
   "type_alias_declaration",
   "type_declaration",
+]);
+const FUNCTION_VALUES = new Set([
+  "arrow_function",
+  "function_expression",
+  "function",
+  "function_definition",
 ]);
 
 let initialized: Promise<void> | undefined;
@@ -126,6 +133,34 @@ export async function parseFile(file: SourceFile): Promise<CachedFacts> {
               startLine: node.startPosition.row + 1,
               endLine: node.endPosition.row + 1,
               exported: /\b(?:export|public|pub)\b/.test(text.slice(0, 160)),
+            });
+          }
+        } else if (
+          node.type === "lexical_declaration" ||
+          node.type === "variable_declaration"
+        ) {
+          const text = file.content.slice(node.startIndex, node.endIndex);
+          const parentText = file.content.slice(
+            node.parent?.startIndex ?? node.startIndex,
+            node.parent?.endIndex ?? node.endIndex,
+          );
+          const exported =
+            /\b(?:export|public|pub)\b/.test(text.slice(0, 160)) ||
+            /\b(?:export|public|pub)\b/.test(parentText.slice(0, 160));
+          for (const declarator of node.namedChildren) {
+            if (declarator.type !== "variable_declarator") continue;
+            const name = nodeName(declarator, file.content);
+            if (!name) continue;
+            const value = declarator.childForFieldName("value");
+            if (!value || !FUNCTION_VALUES.has(value.type)) continue;
+            found.push({
+              id: `sym:${file.path}#${name}:${declarator.startPosition.row + 1}`,
+              path: file.path,
+              name,
+              kind: "function_declaration",
+              startLine: declarator.startPosition.row + 1,
+              endLine: declarator.endPosition.row + 1,
+              exported,
             });
           }
         }

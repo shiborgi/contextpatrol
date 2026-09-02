@@ -5,7 +5,7 @@ import { IndexStore } from "./index-store.js";
 import { compareText, digest } from "./json.js";
 import { parseFile } from "./parser.js";
 import { queryTerms, score } from "./ranking.js";
-import { resolveImport } from "./relations.js";
+import { type PathAlias, resolveImport } from "./relations.js";
 import { noopLogger, type RunContext } from "./run-context.js";
 import { snippet } from "./snippets.js";
 import { loadSource, verifySourceUnchanged } from "./source.js";
@@ -16,6 +16,36 @@ interface IndexedFile {
   file: SourceFile;
   facts: CachedFacts;
   score: number;
+}
+
+function pathAliases(files: SourceFile[]): PathAlias[] {
+  const aliases: PathAlias[] = [];
+  for (const file of files) {
+    const name = file.path.split("/").at(-1) ?? "";
+    if (name !== "tsconfig.json" && name !== "jsconfig.json") continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(file.content);
+    } catch {
+      continue;
+    }
+    if (typeof parsed !== "object" || parsed === null) continue;
+    const record = parsed as Record<string, unknown>;
+    const compilerOptions = record.compilerOptions;
+    if (typeof compilerOptions !== "object" || compilerOptions === null) continue;
+    const paths = (compilerOptions as Record<string, unknown>).paths;
+    if (typeof paths !== "object" || paths === null) continue;
+    const baseDir = file.path.includes("/")
+      ? file.path.slice(0, file.path.lastIndexOf("/"))
+      : "";
+    for (const [pattern, targets] of Object.entries(paths as Record<string, unknown>)) {
+      if (!Array.isArray(targets) || targets.length === 0) continue;
+      const target = targets[0];
+      if (typeof target !== "string") continue;
+      aliases.push({ pattern, target, baseDir });
+    }
+  }
+  return aliases;
 }
 
 function factsAtPath(facts: CachedFacts, file: SourceFile): CachedFacts {
@@ -59,19 +89,20 @@ export async function queryContext(
     );
     const selectedOrFallback = ranked.slice(0, LIMITS.maxSelectedFiles);
     const known = new Set(source.files.map((file) => file.path));
+    const aliases = pathAliases(source.files);
     const selectedPaths = new Set(selectedOrFallback.map(({ file }) => file.path));
     const relationSources = indexed.filter(
       ({ file, facts }) =>
         selectedPaths.has(file.path) ||
         facts.imports.some((specifier) =>
-          selectedPaths.has(resolveImport(file.path, specifier, known) ?? ""),
+          selectedPaths.has(resolveImport(file.path, specifier, known, aliases) ?? ""),
         ),
     );
     const relationFacts: ContextReport["relations"] = [];
     let unresolvedRelations = 0;
     for (const { file, facts } of relationSources) {
       for (const specifier of facts.imports) {
-        const target = resolveImport(file.path, specifier, known);
+        const target = resolveImport(file.path, specifier, known, aliases);
         if (target)
           relationFacts.push({ kind: "imports", from: file.path, to: target });
         else if (specifier.startsWith(".")) unresolvedRelations += 1;

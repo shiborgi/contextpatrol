@@ -6,7 +6,18 @@ import { ContextPatrolError } from "./errors.js";
 import { compareText, digest } from "./json.js";
 import type { QueryRequest, SourceFile } from "./types.js";
 
-const DENIED_PARTS = new Set([".git", ".hg", ".svn", "dist", "node_modules", "vendor"]);
+const DENIED_PARTS = new Set([
+  ".git",
+  ".hg",
+  ".next",
+  ".svn",
+  ".turbo",
+  "coverage",
+  "dist",
+  "node_modules",
+  "storybook-static",
+  "vendor",
+]);
 const DENIED_NAMES = [
   /^\.env(?:\.|$)/,
   /\.pem$/i,

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Admit CSS and MDX as analyzed source; deny generated frontend trees (`.next`,
+  `.turbo`, `coverage`, `storybook-static`); resolve relative CSS imports.
+- Expose function-valued lexical and variable declarations as symbols.
+- Resolve import specifiers through `compilerOptions.paths` of analyzed
+  `tsconfig.json` and `jsconfig.json` files without following `extends`.
 - Keep only stage-typed recipes plus `readiness`. Drop unused aliases
   (`orientation`, `implementation`, `impact`, and the WAVE-5.1 wide/grounded
   names). `spec-survey` now includes signature excerpts; `review-diff` includes

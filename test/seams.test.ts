@@ -114,3 +114,54 @@ test("query reports BUDGET_TOO_SMALL when the envelope cannot fit", async () => 
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("CSS and MDX are eligible source; generated frontend trees are denied", () => {
+  assert.equal(SOURCE_EXTENSIONS.has(".css"), true);
+  assert.equal(SOURCE_EXTENSIONS.has(".mdx"), true);
+  assert.equal(allowedPath("styles.css", request), true);
+  assert.equal(allowedPath("page.mdx", request), true);
+  assert.equal(allowedPath(".next/generated.ts", request), false);
+  assert.equal(allowedPath("coverage/out.ts", request), false);
+  assert.equal(allowedPath(".turbo/cache.ts", request), false);
+  assert.equal(allowedPath("storybook-static/preview.js", request), false);
+  assert.equal(allowedPath("src/build/util.ts", request), true);
+});
+
+test("relative CSS imports resolve through the shared extension table", () => {
+  assert.equal(
+    resolveImport("src/main.ts", "./styles.css", new Set(["src/styles.css"])),
+    "src/styles.css",
+  );
+});
+
+test("function-valued lexical declarations appear as symbols", async () => {
+  const file: SourceFile = {
+    path: "screen.tsx",
+    content:
+      "export const Screen = () => null;\nconst helper = function () {};\nconst unused = 1;\n",
+    hash: "sha256:test",
+    language: "tsx",
+    lines: 3,
+  };
+  const facts = await parseFile(file);
+  const screen = facts.symbols.find((symbol) => symbol.name === "Screen");
+  assert.ok(screen);
+  assert.equal(screen.exported, true);
+  assert.ok(facts.symbols.some((symbol) => symbol.name === "helper"));
+  assert.ok(!facts.symbols.some((symbol) => symbol.name === "unused"));
+});
+
+test("path aliases resolve through analyzed tsconfig paths", () => {
+  assert.equal(
+    resolveImport("src/app.ts", "@/lib/format", new Set(["lib/format.ts"]), [
+      { pattern: "@/*", target: "./*", baseDir: "" },
+    ]),
+    "lib/format.ts",
+  );
+  assert.equal(
+    resolveImport("src/app.ts", "react", new Set(["react"]), [
+      { pattern: "@/*", target: "./*", baseDir: "" },
+    ]),
+    undefined,
+  );
+});

@@ -432,3 +432,97 @@ test("repeated dirty runs change only the changed section digest", async () => {
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("CSS and MDX appear in structure reports; generated trees are denied", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    execFileSync("mkdir", [
+      "-p",
+      path.join(workspace, ".next"),
+      path.join(workspace, "coverage"),
+      path.join(workspace, ".turbo"),
+      path.join(workspace, "storybook-static"),
+      path.join(workspace, "src", "build"),
+    ]);
+    writeFileSync(path.join(workspace, "styles.css"), ".btn { color: red; }\n");
+    writeFileSync(path.join(workspace, "page.mdx"), "# Title\n");
+    writeFileSync(
+      path.join(workspace, ".next", "generated.ts"),
+      "export const x = 1;\n",
+    );
+    writeFileSync(path.join(workspace, "coverage", "out.ts"), "export const y = 1;\n");
+    writeFileSync(path.join(workspace, ".turbo", "cache.ts"), "export const z = 1;\n");
+    writeFileSync(
+      path.join(workspace, "storybook-static", "preview.js"),
+      "export const p = 1;\n",
+    );
+    writeFileSync(
+      path.join(workspace, "src", "build", "util.ts"),
+      "export function util() {}\n",
+    );
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const report = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "styles page util",
+      facets: ["structure"],
+      maxOutputBytes: 8_192,
+      target: { kind: "working-tree" },
+    });
+    const paths = report.files.map((entry) => entry.path);
+    assert.ok(paths.includes("styles.css"));
+    assert.ok(paths.includes("page.mdx"));
+    assert.ok(paths.includes("src/build/util.ts"));
+    assert.ok(!paths.includes(".next/generated.ts"));
+    assert.ok(!paths.includes("coverage/out.ts"));
+    assert.ok(!paths.includes(".turbo/cache.ts"));
+    assert.ok(!paths.includes("storybook-static/preview.js"));
+    const css = report.files.find((entry) => entry.path === "styles.css");
+    assert.equal(css?.language, "css");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("tsconfig path aliases resolve imports end to end", async () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), "contextpatrol-"));
+  try {
+    execFileSync("git", ["init", "-q", workspace]);
+    execFileSync("git", ["-C", workspace, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", workspace, "config", "user.name", "Test"]);
+    execFileSync("mkdir", ["-p", path.join(workspace, "lib")]);
+    writeFileSync(
+      path.join(workspace, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { paths: { "@/*": ["./*"] } } }),
+    );
+    writeFileSync(
+      path.join(workspace, "lib", "format.ts"),
+      "export function format() {}\n",
+    );
+    writeFileSync(
+      path.join(workspace, "app.ts"),
+      "import { format } from '@/lib/format';\nvoid format();\n",
+    );
+    execFileSync("git", ["-C", workspace, "add", "."]);
+    execFileSync("git", ["-C", workspace, "commit", "-qm", "fixture"]);
+    const report = await queryContext({
+      schemaVersion: 1,
+      workspace,
+      query: "format",
+      facets: ["relations"],
+      maxOutputBytes: 8_192,
+      target: { kind: "working-tree" },
+    });
+    assert.ok(
+      report.relations.some(
+        (relation) => relation.from === "app.ts" && relation.to === "lib/format.ts",
+      ),
+    );
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});

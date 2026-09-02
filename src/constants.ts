@@ -29,6 +29,7 @@ export const LIMITS = {
 export const SOURCE_EXTENSIONS = new Set([
   ".cjs",
   ".cs",
+  ".css",
   ".go",
   ".java",
   ".js",
@@ -36,6 +37,7 @@ export const SOURCE_EXTENSIONS = new Set([
   ".jsx",
   ".kt",
   ".md",
+  ".mdx",
   ".mjs",
   ".php",
   ".py",

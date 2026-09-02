@@ -156,8 +156,9 @@ reinvoking ContextPatrol. Each project remains independently installable.
 - denied metadata, dependency, generated and credential-shaped files;
 - redaction before excerpting;
 - deterministic UTF-8 ordering and SHA-256 digests;
-- Tree-sitter structural facts for C, C#, Go, Java, JavaScript, PHP, Python,
-  Ruby, Rust, Swift, and TypeScript;
+- Tree-sitter structural facts for C, C#, CSS, Go, Java, JavaScript, PHP,
+  Python, Ruby, Rust, Swift, and TypeScript;
+- indexed extensions include Markdown and MDX;
 - exact output-byte budgets rather than model-specific token estimates;
 - source-change detection for working-tree analysis.
 
