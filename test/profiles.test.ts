@@ -70,6 +70,22 @@ const stageTypedDefaults = {
   ship: "readiness",
 };
 
+const frontendRecipes: Record<string, ProfileRecipe> = {
+  "ui-surface": {
+    facets: ["symbols", "relations", "source", "tests"],
+    maxOutputBytes: 19200,
+  },
+  "ui-tokens": {
+    facets: ["structure", "symbols", "source"],
+    maxOutputBytes: 12800,
+    sourceDepth: "signatures",
+  },
+  "ui-flow": {
+    facets: ["structure", "relations", "source", "tests"],
+    maxOutputBytes: 19200,
+  },
+};
+
 const publicReportKeys = [
   "schemaVersion",
   "provider",
@@ -158,11 +174,12 @@ function requestFor(
 
 test("stage-typed catalog is exact", () => {
   const config = loadConfig();
+  const expected = { ...stageTypedRecipes, ...frontendRecipes };
   assert.deepEqual(
     Object.keys(config.contextPatrol.profiles).sort(),
-    Object.keys(stageTypedRecipes).sort(),
+    Object.keys(expected).sort(),
   );
-  for (const [name, recipe] of Object.entries(stageTypedRecipes)) {
+  for (const [name, recipe] of Object.entries(expected)) {
     assert.deepEqual(config.contextPatrol.profiles[name], recipe);
   }
 });
@@ -176,6 +193,31 @@ test("stage-typed defaults are resolvable", () => {
 });
 
 for (const [name, expectedRecipe] of Object.entries(stageTypedRecipes)) {
+  test(`${name} is bounded and repeatable`, async () => {
+    const config = loadConfig();
+    const recipe = config.contextPatrol.profiles[name];
+    assert.deepEqual(recipe, expectedRecipe);
+    const { workspace, baseline, target } = createFixtureRepository();
+    try {
+      const request = requestFor(recipe, workspace, baseline, target);
+      const first = await queryContext(request);
+      const second = await queryContext({
+        ...request,
+        facets: [...recipe.facets],
+      });
+      assert.deepEqual(first, second);
+      assert.equal(first.reportDigest, second.reportDigest);
+      assert.equal(first.budget.maxOutputBytes, expectedRecipe.maxOutputBytes);
+      assert.ok(first.budget.outputBytes >= 1);
+      assert.ok(first.budget.outputBytes <= expectedRecipe.maxOutputBytes);
+      assertPublicReport(first);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const [name, expectedRecipe] of Object.entries(frontendRecipes)) {
   test(`${name} is bounded and repeatable`, async () => {
     const config = loadConfig();
     const recipe = config.contextPatrol.profiles[name];
@@ -299,6 +341,57 @@ test("stage-typed reports are facet-specific", async () => {
     assert.deepEqual(readiness.snippets, []);
     assert.deepEqual(readiness.changes, expectedChanges);
     assert.deepEqual(readiness.tests, expectedTests);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("frontend recipes are facet-specific", async () => {
+  const config = loadConfig();
+  const { workspace, baseline, target } = createFixtureRepository();
+  try {
+    const reports = new Map<string, ContextReport>();
+    for (const [name, recipe] of Object.entries(frontendRecipes)) {
+      assert.deepEqual(config.contextPatrol.profiles[name], recipe);
+      const request = requestFor(recipe, workspace, baseline, target);
+      const first = await queryContext(request);
+      assertPublicReport(first);
+      reports.set(name, first);
+    }
+
+    const expectedTests = {
+      files: ["src/token.test.ts"],
+      changedSourceWithoutTest: ["src/untested.ts"],
+    };
+
+    const uiSurface = reports.get("ui-surface");
+    const uiTokens = reports.get("ui-tokens");
+    const uiFlow = reports.get("ui-flow");
+    assert.ok(uiSurface);
+    assert.ok(uiTokens);
+    assert.ok(uiFlow);
+
+    assert.deepEqual(uiSurface.files, []);
+    assert.ok(uiSurface.relations.length > 0);
+    assert.ok(uiSurface.snippets.length > 0);
+    assert.deepEqual(uiSurface.changes, []);
+    assert.deepEqual(uiSurface.tests, expectedTests);
+
+    assert.ok(uiTokens.files.length > 0);
+    assert.ok(uiTokens.symbols.length > 0);
+    assert.ok(uiTokens.snippets.length > 0);
+    assert.deepEqual(uiTokens.relations, []);
+    assert.deepEqual(uiTokens.changes, []);
+    assert.deepEqual(uiTokens.tests, {
+      files: [],
+      changedSourceWithoutTest: [],
+    });
+
+    assert.ok(uiFlow.files.length > 0);
+    assert.ok(uiFlow.relations.length > 0);
+    assert.ok(uiFlow.snippets.length > 0);
+    assert.deepEqual(uiFlow.changes, []);
+    assert.deepEqual(uiFlow.tests, expectedTests);
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
