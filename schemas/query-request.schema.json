@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:contextpatrol:query-request:1.0",
+  "title": "Context Query 1.0 Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "root", "task"],
+  "properties": {
+    "protocolVersion": { "const": "1.0" },
+    "root": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!.*[\\u0000-\\u001f\\u007f])(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)", "description": "Absolute existing directory on the host; runtime enforces host path syntax, containment and symlink exclusions." },
+    "task": { "type": "string", "minLength": 1, "maxLength": 8192, "pattern": "\\S" },
+    "profile": { "enum": ["overview", "architecture", "implementation", "review"], "default": "overview" },
+    "paths": {
+      "type": "array", "maxItems": 100, "default": [],
+      "items": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*[\\\\:*?\\[\\]{}\\u0000-\\u001f\\u007f]).*[^/]$" },
+      "description": "Repository-relative seed files, not globs or selection filters. Duplicates are normalized."
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "maxFiles": { "type": "integer", "minimum": 1, "maximum": 500, "default": 30 },
+        "maxBytes": { "type": "integer", "minimum": 1024, "maximum": 1048576, "default": 24000 },
+        "maxDepth": { "type": "integer", "minimum": 0, "maximum": 20, "default": 2 }
+      }
+    }
+  }
+}

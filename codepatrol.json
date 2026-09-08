@@ -1,0 +1,13 @@
+{
+  "protocolVersion": "1.0",
+  "providers": {
+    "agents": {
+      "catalog": ["agentpatrol", "catalog"],
+      "resolve": ["agentpatrol", "resolve"]
+    },
+    "context": ["contextpatrol", "query"]
+  },
+  "verification": ["npm", "run", "verify"],
+  "limits": {"timeoutMs": 120000, "maxOutputBytes": 1048576},
+  "telemetry": {"enabled": false}
+}
