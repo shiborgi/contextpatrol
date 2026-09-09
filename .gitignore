@@ -3,3 +3,5 @@ dist/
 *.tgz
 *.log
 .DS_Store
+.codepatrol/
+.memorypatrol/

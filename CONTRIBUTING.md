@@ -12,7 +12,8 @@ loading. `release-check` packs and installs the npm artifact, then smokes the
 installed binary and library, including the packaged Python WASM grammar. Packing
 and installation disable lifecycle scripts; installation uses the npm registry for
 dependencies. No gate publishes, pushes, contacts GitHub, or runs CodePatrol. The
-checked-in portable Patrol Protocol 1.0 config has no executor.
+checked-in Patrol Protocol 1.0 config declares the separately installed Pi executor,
+but configuration alone never invokes it.
 
 Changes must preserve read-only, deterministic, bounded analysis with no
 network access. Do not add lifecycle terms, caller IDs, orchestrator state,

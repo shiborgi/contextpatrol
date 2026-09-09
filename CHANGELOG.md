@@ -12,7 +12,7 @@ Initial public release implementing Patrol Protocol 1.0 Context Query.
 - Detect stack hints, vary profile ranking/detail, and preserve deterministic selection and canonical SHA-256 digests.
 - Bound the entire response including digest/newline, with explicit truncation diagnostics.
 - Exclude sensitive paths, all in-root symlinks, binary and oversized files; redact credential-shaped content.
-- Provide portable Patrol Protocol 1.0 provider argv with no executor or remote authority.
+- Provide Patrol Protocol 1.0 provider argv and opt-in Pi executor configuration with no remote authority.
 - Add strict validation, security, graph, CLI, determinism and offline installed-package tests on Node.js 22.13+.
 
 There is no prior public version, migration path, legacy runtime, or compatibility mode.
