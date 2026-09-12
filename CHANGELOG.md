@@ -8,7 +8,7 @@ Initial public release implementing Patrol Protocol 1.0 Context Query.
 
 - Expose `query` and a closed request with `root`, `task`, `profile`, `paths`, and `budget`.
 - Read bounded filesystem snapshots in ordinary directories and Git working trees without invoking Git.
-- Extract real JS/TS/Python syntax imports; report heuristic local edges, bounded reverse impact and cycle representatives.
+- Extract real JS/TS/Python/Go/Rust syntax imports; report conservative local edges, bounded reverse impact and cycle representatives.
 - Detect stack hints, vary profile ranking/detail, and preserve deterministic selection and canonical SHA-256 digests.
 - Bound the entire response including digest/newline, with explicit truncation diagnostics.
 - Exclude sensitive paths, all in-root symlinks, binary and oversized files; redact credential-shaped content.

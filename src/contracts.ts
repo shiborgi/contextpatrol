@@ -34,9 +34,15 @@ export interface SelectedFile {
   reasons: string[];
   excerpt?: string;
 }
+export interface GraphEdge {
+  from: string;
+  to: string;
+  kind: "imports";
+}
+
 export interface Graph {
   nodes: string[];
-  edges: { from: string; to: string; kind: "imports" }[];
+  edges: GraphEdge[];
   cycles: string[][];
   impacted: string[];
 }

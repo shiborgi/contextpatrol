@@ -55,11 +55,11 @@ export function select(
           `imported by ${degree.get(file.path)} local files`,
         );
       const metadata =
-        /(?:^|\/)(?:readme\.md|package\.json|pyproject\.toml|.*config\.[^/]+)$/i.test(
+        /(?:^|\/)(?:readme\.md|package\.json|pyproject\.toml|go\.mod|cargo\.toml|.*config\.[^/]+)$/i.test(
           file.path,
         );
       const test =
-        /(?:^|\/)(?:tests?|__tests__)(?:\/|_)|(?:\.test|\.spec)\.|(?:^|\/)test_[^/]+\.py$/i.test(
+        /(?:^|\/)(?:tests?|__tests__)(?:\/|_)|(?:\.test|\.spec)\.|(?:^|\/)test_[^/]+\.py$|_test\.go$|(?:^|\/)tests\/.*\.rs$/i.test(
           file.path,
         );
       if (request.profile === "overview" && metadata)
@@ -71,7 +71,7 @@ export function select(
         reward(60, "architecture: entry-point path heuristic");
       if (
         request.profile === "implementation" &&
-        ["javascript", "typescript", "python"].includes(file.language) &&
+        ["javascript", "typescript", "python", "go", "rust"].includes(file.language) &&
         !test
       )
         reward(30, "implementation: source file");

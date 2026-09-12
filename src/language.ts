@@ -28,13 +28,37 @@ function python(): Promise<Language> {
   })();
   return pythonLanguage;
 }
+let goLanguage: Promise<Language> | undefined;
+function go(): Promise<Language> {
+  goLanguage ??= (async () => {
+    await Parser.init({
+      locateFile: () => require.resolve("web-tree-sitter/web-tree-sitter.wasm"),
+    });
+    return Language.load(
+      require.resolve("@repomix/tree-sitter-wasms/out/tree-sitter-go.wasm"),
+    );
+  })();
+  return goLanguage;
+}
+let rustLanguage: Promise<Language> | undefined;
+function rust(): Promise<Language> {
+  rustLanguage ??= (async () => {
+    await Parser.init({
+      locateFile: () => require.resolve("web-tree-sitter/web-tree-sitter.wasm"),
+    });
+    return Language.load(
+      require.resolve("@repomix/tree-sitter-wasms/out/tree-sitter-rust.wasm"),
+    );
+  })();
+  return rustLanguage;
+}
 export async function extract(
   file: SourceFile,
   diagnostics: Diagnostics,
 ): Promise<Facts> {
   const imports: ImportFact[] = [];
   const signals = new Set<string>();
-  if (["typescript", "javascript", "python"].includes(file.language))
+  if (["typescript", "javascript", "python", "go", "rust"].includes(file.language))
     signals.add(file.language);
   if (/\.(?:jsx|tsx)$/.test(file.path)) {
     signals.add(path.posix.extname(file.path).slice(1));
@@ -158,6 +182,77 @@ export async function extract(
     } finally {
       parser.delete();
     }
+  } else if (file.language === "go") {
+    const grammar = await go();
+    const parser = new Parser();
+    try {
+      parser.setLanguage(grammar);
+      const tree = parser.parse(file.content);
+      if (!tree) throw new Error("no syntax tree");
+      try {
+        if (tree.rootNode.hasError)
+          diagnostics.add(
+            `Syntax errors; imports may be incomplete: ${file.path}`,
+            true,
+          );
+        const pending = [tree.rootNode];
+        while (pending.length) {
+          const node = pending.pop();
+          if (!node) break;
+          if (node.type === "import_spec") {
+            const pathNode = node.childForFieldName("path");
+            if (pathNode) {
+              const spec = pathNode.text.replace(/^"|"$/g, "");
+              add(spec, node.startPosition.row + 1);
+            }
+          }
+          pending.push(...node.namedChildren);
+        }
+      } finally {
+        tree.delete();
+      }
+    } finally {
+      parser.delete();
+    }
+  } else if (file.language === "rust") {
+    const grammar = await rust();
+    const parser = new Parser();
+    try {
+      parser.setLanguage(grammar);
+      const tree = parser.parse(file.content);
+      if (!tree) throw new Error("no syntax tree");
+      try {
+        if (tree.rootNode.hasError)
+          diagnostics.add(
+            `Syntax errors; imports may be incomplete: ${file.path}`,
+            true,
+          );
+        const pending = [tree.rootNode];
+        while (pending.length) {
+          const node = pending.pop();
+          if (!node) break;
+          if (node.type === "use_declaration") {
+            const arg = node.childForFieldName("argument") ?? node.namedChildren[0];
+            if (arg) {
+              const spec = arg.text.replace(/;$/, "").trim();
+              add(spec, node.startPosition.row + 1);
+            }
+          }
+          if (node.type === "mod_item") {
+            const nameNode = node.childForFieldName("name");
+            const bodyNode = node.childForFieldName("body");
+            if (nameNode && !bodyNode) {
+              add(`mod:${nameNode.text}`, node.startPosition.row + 1);
+            }
+          }
+          pending.push(...node.namedChildren);
+        }
+      } finally {
+        tree.delete();
+      }
+    } finally {
+      parser.delete();
+    }
   }
   const packages = new Set(imports.map((item) => item.specifier));
   if (path.posix.basename(file.path) === "package.json") {
@@ -192,6 +287,8 @@ export async function extract(
       signals.add("mcp");
   }
   if (/^next\.config\./.test(base)) signals.add("nextjs");
+  if (base === "go.mod") signals.add("go");
+  if (base === "Cargo.toml") signals.add("rust");
   if (
     /^(?:mcp\.json|\.mcp\.json)$/.test(base) ||
     /(?:McpServer|FastMCP|modelcontextprotocol|mcpServers)/.test(file.content)

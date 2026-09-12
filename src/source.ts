@@ -95,10 +95,13 @@ export function excluded(relative: string): boolean {
     .some((part) => DENIED_DIRS.has(part.toLowerCase()) || SENSITIVE.test(part));
 }
 function language(file: string): string {
+  if (path.posix.basename(file) === "go.mod") return "gomod";
   const ext = path.posix.extname(file).slice(1).toLowerCase();
   if (["ts", "tsx", "mts", "cts"].includes(ext)) return "typescript";
   if (["js", "jsx", "mjs", "cjs"].includes(ext)) return "javascript";
   if (["py", "pyi"].includes(ext)) return "python";
+  if (ext === "rs") return "rust";
+  if (ext === "go") return "go";
   return ext || "text";
 }
 export function redact(text: string): string {
@@ -203,7 +206,7 @@ export function loadSource(
         }
         if (
           !EXTENSIONS.has(path.posix.extname(file).toLowerCase()) &&
-          !["Dockerfile", "Makefile"].includes(name)
+          !["Dockerfile", "Makefile", "go.mod"].includes(name)
         ) {
           diagnostics.add("Unsupported file types excluded.", true);
           continue;

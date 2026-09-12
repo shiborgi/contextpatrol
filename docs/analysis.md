@@ -68,6 +68,11 @@ ambiguity are not fully modeled. An edge always points to an actually read file;
 diagnostics explain approximations and unresolved imports. Selected-file reasons
 include up to three literal import line/target evidence strings.
 
+Go imports are syntax parsed and become local edges only when they are relative or
+fall beneath the exact module declared in `go.mod`; external packages are not
+matched by path suffix. Rust `use` and external `mod` items are syntax parsed with
+conservative `crate::` and `super::` module resolution.
+
 Signals come from extensions, dependency names in package.json, Python project
 metadata, conventional paths such as next.config, imports, and recognizable content
 such as FastMCP/McpServer. Signals are heuristics, never installed-stack verification.
@@ -90,7 +95,7 @@ content matches 3, direct seed dependencies 80, and reverse impact 100 (review:
 two characters, at most 64 unique terms. Substring matches are heuristic. Incoming
 degree contributes 2 points per importer (architecture: 12), capped at 20 importers.
 Overview rewards metadata by 100; architecture rewards conventional entry paths by
-60; implementation rewards non-test JS/TS/Python by 30; review rewards test paths
+60; implementation rewards non-test JS/TS/Python/Go/Rust by 30; review rewards test paths
 by 100. Ties use ascending path order. Reasons expose the contributions. Paths
 are seeds rather than filters; unrelated fallback files may still be selected.
 

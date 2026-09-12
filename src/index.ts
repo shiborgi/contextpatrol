@@ -2,6 +2,7 @@ export type {
   Budget,
   EffectiveQuery,
   Graph,
+  GraphEdge,
   Profile,
   QueryRequest,
   QueryResponse,

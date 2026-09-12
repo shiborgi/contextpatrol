@@ -15,6 +15,9 @@ export function buildGraph(
 ): AnalysisGraph {
   const nodes = files.map((file) => file.path);
   const available = new Set(nodes);
+  const goModule = files
+    .find((file) => file.path === "go.mod")
+    ?.content.match(/^[ \t]*module[ \t]+(\S+)[ \t]*$/m)?.[1];
   const edgeKeys = new Set<string>();
   const edges: Graph["edges"] = [];
   const evidence = new Map<string, string[]>();
@@ -53,6 +56,58 @@ export function buildGraph(
             if (child) targets.add(child);
           }
           if (targets.size) break;
+        }
+      } else if (file.language === "go") {
+        if (spec.startsWith("./") || spec.startsWith("../")) {
+          const dir = path.posix.normalize(
+            path.posix.join(path.posix.dirname(file.path), spec),
+          );
+          for (const node of nodes) {
+            if (node.endsWith(".go") && path.posix.dirname(node) === dir) {
+              targets.add(node);
+            }
+          }
+        } else if (goModule && (spec === goModule || spec.startsWith(`${goModule}/`))) {
+          const dir = spec === goModule ? "." : spec.slice(goModule.length + 1);
+          for (const node of nodes) {
+            if (node.endsWith(".go") && path.posix.dirname(node) === dir) {
+              targets.add(node);
+            }
+          }
+        }
+      } else if (file.language === "rust") {
+        if (spec.startsWith("mod:")) {
+          const modName = spec.slice(4);
+          const dir = path.posix.dirname(file.path);
+          const candidates = [
+            path.posix.join(dir, `${modName}.rs`),
+            path.posix.join(dir, modName, "mod.rs"),
+          ];
+          const target = resolve(candidates);
+          if (target) targets.add(target);
+        } else if (spec.startsWith("crate::")) {
+          const modPath = spec.slice(7).split("::")[0] ?? "";
+          if (modPath) {
+            const candidates = [
+              `src/${modPath}.rs`,
+              `src/${modPath}/mod.rs`,
+              `${modPath}.rs`,
+              `${modPath}/mod.rs`,
+            ];
+            const target = resolve(candidates);
+            if (target) targets.add(target);
+          }
+        } else if (spec.startsWith("super::")) {
+          const dir = path.posix.dirname(file.path);
+          const modPath = spec.slice(7).split("::")[0] ?? "";
+          if (modPath) {
+            const candidates = [
+              path.posix.join(dir, `${modPath}.rs`),
+              path.posix.join(dir, modPath, "mod.rs"),
+            ];
+            const target = resolve(candidates);
+            if (target) targets.add(target);
+          }
         }
       } else if (spec.startsWith("./") || spec.startsWith("../")) {
         const base = path.posix.normalize(

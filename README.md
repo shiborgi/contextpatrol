@@ -108,10 +108,11 @@ npm run release-check
 
 `verify` type-checks strict TypeScript, lints, builds, tests, and runs local library
 and CLI smokes. `release-check` packs and installs in a temporary directory with
-`--ignore-scripts`, then exercises the installed library, CLI, and Python WASM
+`--ignore-scripts`, then exercises the installed library, CLI, and bundled language WASM
 parser. Its artifact installation uses the npm registry for dependencies. Neither
 command publishes or contacts GitHub.
 
-`codepatrol.json` contains only portable Patrol Protocol 1.0 provider argv, explicit local
-verification, bounded limits, and disabled telemetry. There is no configured
-executor or remote authority. ContextPatrol never reads or runs this config.
+`codepatrol.json` contains the standardized local Patrol Protocol 1.0 integration:
+explicit providers, Pi executor, ModelPatrol transport, verification, bounded
+limits, progress, MemoryPatrol handoffs, and telemetry. It grants no remote
+authority. ContextPatrol never reads or runs this config.
